@@ -7,11 +7,59 @@ This repository provides one reproducible pipeline for:
 3. semantically matching daily supervisors and promotors under workload constraints;
 4. reassigning supervision after a departure or an ad hoc change.
 
-The year-specific scripts and machine-specific paths have been replaced by an
-installable Python package, a command-line interface, validated input contracts,
-and automated tests.
+The year-specific scripts and machine-specific paths have been replaced by a
+guided browser interface, an installable Python package, a command-line
+interface, validated input contracts, and automated tests.
 
-## Quick start
+## Recommended: browser interface for colleagues
+
+The local Streamlit app provides file-upload forms, guided options, previews,
+and ZIP downloads. It opens in the default web browser and does not require
+colleagues to type commands after setup.
+
+On Windows:
+
+1. Download and extract the repository ZIP.
+2. Install Python 3.10 or newer if it is not already installed.
+3. Double-click `INSTALL_APP.bat` once.
+4. Double-click `START_APP.bat` whenever the app is needed.
+5. Keep the small command window open while using the browser app.
+
+The app has three screens:
+
+- **Run complete allocation** accepts the researcher, topic, and student files
+  and returns every result as one ZIP download.
+- **Reassign supervision** replaces one student's role or every assignment
+  held by a departing supervisor.
+- **Input templates** downloads the three blank Excel workbooks.
+
+The local launcher binds the server to `127.0.0.1`, so uploaded student data is
+processed on the same computer. Enabling researcher-profile retrieval sends
+requests to the profile URLs in the uploaded researcher file. See
+[the browser-app guide](docs/WEB_APP.md) for setup and deployment choices.
+
+The first semantic run downloads the default
+`sentence-transformers/all-MiniLM-L6-v2` model. Existing profile text is reused.
+Missing profile or publication text can be retrieved when a corresponding URL
+is available.
+
+## Outputs
+
+The browser interface returns a ZIP containing:
+
+| File | Purpose |
+| --- | --- |
+| `researchers_enriched.xlsx` | Researcher input plus retrieved text and per-row scrape status |
+| `topic_assignments.xlsx` | Ranked-topic allocation, selected language, rank, and cost |
+| `final_assignments.xlsx` | Topic, daily supervisor, promotor, match scores, and assignment source |
+| `supervisor_summary.xlsx` | Minimum, maximum, actual load, and capacity flags per researcher |
+| `run_report.json` | Machine-readable totals, output paths, and warnings |
+
+The app stops with an actionable message before producing misleading downstream
+results when an input is invalid or a complete assignment is impossible.
+Deliberate partial runs remain available in the options.
+
+## Command-line use
 
 Python 3.10 or newer is required.
 
@@ -20,12 +68,6 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[semantic]"
 thesis-allocation create-templates input
-```
-
-On Windows PowerShell, activate the environment with:
-
-```powershell
-.venv\Scripts\Activate.ps1
 ```
 
 Fill the three generated workbooks and run:
@@ -38,26 +80,7 @@ thesis-allocation run \
   --output-directory output
 ```
 
-The first semantic run downloads the default
-`sentence-transformers/all-MiniLM-L6-v2` model. Existing profile text is reused.
-Missing profile or publication text is retrieved when a corresponding URL is
-available. Add `--skip-scrape` to prohibit network retrieval.
-
-## Outputs
-
-The end-to-end command writes:
-
-| File | Purpose |
-| --- | --- |
-| `researchers_enriched.xlsx` | Researcher input plus retrieved text and per-row scrape status |
-| `topic_assignments.xlsx` | Ranked-topic allocation, selected language, rank, and cost |
-| `final_assignments.xlsx` | Topic, daily supervisor, promotor, match scores, and assignment source |
-| `supervisor_summary.xlsx` | Minimum, maximum, actual load, and capacity flags per researcher |
-| `run_report.json` | Machine-readable totals, output paths, and warnings |
-
-The command fails before writing misleading downstream results when an input is
-invalid or a complete assignment is impossible. `--allow-partial` is available
-for deliberate partial runs.
+Add `--skip-scrape` to prohibit network retrieval.
 
 ## Individual stages
 
@@ -139,16 +162,16 @@ excluded from every replacement generated in that run.
 - Daily supervisor and promotor must be different people unless `--allow-same-person` is supplied.
 - Invalid, ambiguous, and low-confidence topic references stop the run with suggestions.
 
-See [the input contract](docs/INPUT_FORMAT.md) and
-[the algorithm description](docs/ALGORITHM.md) for details.
+See [the input contract](docs/INPUT_FORMAT.md),
+[the algorithm description](docs/ALGORITHM.md), and
+[the browser-app guide](docs/WEB_APP.md) for details.
 
 ## Development
 
 The base test suite does not download an embedding model.
 
 ```bash
-python -m pip install -e .
+python -m pip install -e ".[web]"
 python -m compileall -q src tests
 python -m unittest discover -s tests -v
 ```
-
