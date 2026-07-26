@@ -17,11 +17,6 @@ dependencies = [
 
 [project.optional-dependencies]
 semantic = ["sentence-transformers>=3.0"]
-web = ["streamlit>=1.45,<2"]
-app = [
-    "sentence-transformers>=3.0",
-    "streamlit>=1.45,<2",
-]
 
 [project.scripts]
 thesis-allocation = "thesis_allocation.cli:main"
@@ -31,3 +26,4 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
