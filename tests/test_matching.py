@@ -161,6 +161,132 @@ class SupervisorMatchingTests(unittest.TestCase):
         self.assertEqual(counts["bob@example.org"], 1)
         self.assertEqual(counts["alice@example.org"], 1)
 
+    def test_topic_submitter_has_priority_over_similarity_and_minimums(self) -> None:
+        researchers = pd.DataFrame(
+            [
+                researcher(
+                    "Alice Submitter",
+                    "alice@example.org",
+                    "medieval history",
+                    daily_min=0,
+                    daily_max=1,
+                    promotor_max=0,
+                ),
+                researcher(
+                    "Bob Semantic Match",
+                    "bob@example.org",
+                    "privacy law rights safeguards",
+                    daily_min=1,
+                    daily_max=1,
+                    promotor_max=0,
+                ),
+            ]
+        )
+        topics = self.topics.copy()
+        topics.loc[
+            topics["topic_id"] == "privacy",
+            "submitter_email",
+        ] = "alice@example.org"
+        assignments = pd.DataFrame(
+            [
+                {
+                    "full_name": "Student Privacy",
+                    "email": "privacy.student@example.org",
+                    "assigned_topic_id": "privacy",
+                    "assigned_topic": "Privacy law",
+                }
+            ]
+        )
+
+        result = match_supervisors(
+            assignments,
+            researchers,
+            topics,
+            self.backend,
+            roles=("daily_supervisor",),
+        )
+
+        output = result.assignments.iloc[0]
+        self.assertEqual(
+            output["daily_supervisor_email"],
+            "alice@example.org",
+        )
+        self.assertEqual(
+            output["daily_supervisor_assignment_source"],
+            "topic_submitter",
+        )
+        self.assertTrue(
+            any("Bob Semantic Match (0/1)" in warning for warning in result.warnings)
+        )
+
+    def test_topic_submitter_priority_stops_at_maximum_capacity(self) -> None:
+        researchers = pd.DataFrame(
+            [
+                researcher(
+                    "Alice Submitter",
+                    "alice@example.org",
+                    "privacy law",
+                    daily_max=1,
+                    promotor_max=0,
+                ),
+                researcher(
+                    "Bob Available",
+                    "bob@example.org",
+                    "privacy law",
+                    daily_max=1,
+                    promotor_max=0,
+                ),
+            ]
+        )
+        topics = pd.DataFrame(
+            [
+                {
+                    "topic_id": "privacy-one",
+                    "topic_title": "Privacy one",
+                    "topic_description": "privacy law",
+                    "submitter_email": "alice@example.org",
+                    "capacity": 1,
+                },
+                {
+                    "topic_id": "privacy-two",
+                    "topic_title": "Privacy two",
+                    "topic_description": "privacy law",
+                    "submitter_email": "alice@example.org",
+                    "capacity": 1,
+                },
+            ]
+        )
+        assignments = pd.DataFrame(
+            [
+                {
+                    "full_name": "Student One",
+                    "email": "one@example.org",
+                    "assigned_topic_id": "privacy-one",
+                    "assigned_topic": "Privacy one",
+                },
+                {
+                    "full_name": "Student Two",
+                    "email": "two@example.org",
+                    "assigned_topic_id": "privacy-two",
+                    "assigned_topic": "Privacy two",
+                },
+            ]
+        )
+
+        result = match_supervisors(
+            assignments,
+            researchers,
+            topics,
+            self.backend,
+            roles=("daily_supervisor",),
+        )
+
+        counts = result.assignments["daily_supervisor_email"].value_counts()
+        sources = result.assignments["daily_supervisor_assignment_source"]
+        self.assertEqual(counts["alice@example.org"], 1)
+        self.assertEqual(counts["bob@example.org"], 1)
+        self.assertEqual((sources == "topic_submitter").sum(), 1)
+
     def test_departure_reassigns_only_affected_rows(self) -> None:
         researchers = pd.DataFrame(
             [
@@ -225,4 +351,3 @@ class SupervisorMatchingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

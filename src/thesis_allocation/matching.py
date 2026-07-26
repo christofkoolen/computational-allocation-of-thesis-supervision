@@ -210,7 +210,6 @@ def _assign_role(
     allow_partial: bool,
     enforce_distinct_roles: bool,
     excluded_researcher_emails: set[str],
-    submitter_bonus: int,
     load_balance_cost: int,
     target_student_emails: set[str] | None,
 ) -> tuple[pd.DataFrame, list[str]]:
@@ -243,7 +242,7 @@ def _assign_role(
     if candidates["_profile_text"].eq("").all():
         warnings.append(
             f"All eligible {spec.label.casefold()} profiles are blank; "
-            "assignments will be driven by capacity and submitter preference"
+            "assignments will be driven by capacity and submitter priority"
         )
 
     current_load = (
@@ -277,6 +276,19 @@ def _assign_role(
         raise ValueError(
             f"Similarity backend returned {similarity.shape}; expected {expected_shape}"
         )
+
+    maximum_slot_index = max(
+        max(0, int(candidate[spec.maximum_column]) - 1)
+        for _, candidate in candidates.iterrows()
+    )
+    maximum_secondary_path_cost = (
+        MINIMUM_PRIORITY_PENALTY
+        + (2 * SIMILARITY_COST_SCALE)
+        + (load_balance_cost * maximum_slot_index)
+    )
+    non_submitter_penalty = (
+        len(target_indices) * maximum_secondary_path_cost
+    ) + 1
 
     source = 0
     student_start = 1
@@ -332,13 +344,12 @@ def _assign_role(
             is_submitter = bool(
                 submitter_email and candidate_email == submitter_email
             )
-            if is_submitter:
-                semantic_cost = max(0, semantic_cost - submitter_bonus)
+            priority_cost = 0 if is_submitter else non_submitter_penalty
             network.add_edge(
                 student_start + student_offset,
                 candidate_start + candidate_offset,
                 1,
-                semantic_cost,
+                priority_cost + semantic_cost,
                 data={
                     "assignment_index": assignment_index,
                     "candidate_offset": candidate_offset,
@@ -471,7 +482,6 @@ def match_supervisors(
     enforce_distinct_roles: bool = True,
     excluded_researcher_emails: set[str] | None = None,
     target_student_emails: set[str] | None = None,
-    submitter_bonus: int = 250,
     load_balance_cost: int = 25,
 ) -> MatchResult:
     """Assign requested supervision roles while preserving existing assignments."""
@@ -479,7 +489,7 @@ def match_supervisors(
     unknown_roles = sorted(set(roles) - set(ROLE_SPECS))
     if unknown_roles:
         raise InputValidationError(f"Unknown role(s): {', '.join(unknown_roles)}")
-    if submitter_bonus < 0 or load_balance_cost < 0:
+    if load_balance_cost < 0:
         raise ValueError("Matching cost parameters must be non-negative")
 
     researcher_table = normalize_researchers(
@@ -530,7 +540,6 @@ def match_supervisors(
             allow_partial=allow_partial,
             enforce_distinct_roles=enforce_distinct_roles,
             excluded_researcher_emails=excluded,
-            submitter_bonus=submitter_bonus,
             load_balance_cost=load_balance_cost,
             target_student_emails=targets,
         )
