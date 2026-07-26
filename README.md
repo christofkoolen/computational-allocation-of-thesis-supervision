@@ -8,10 +8,30 @@ This repository provides one reproducible pipeline for:
 4. reassigning supervision after a departure or an ad hoc change.
 
 The year-specific scripts and machine-specific paths have been replaced by an
-installable Python package, a command-line interface, validated input contracts,
-and automated tests.
+installable Python package, a Google Colab workflow, a command-line interface,
+validated input contracts, and automated tests.
 
-## Quick start
+## Recommended: Google Colab
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/christofkoolen/computational-allocation-of-thesis-supervision/blob/main/notebooks/Thesis_Allocation_Colab.ipynb)
+
+The Colab notebook is intended for colleagues who do not use Python or a
+terminal. It supports the complete allocation and targeted reassignment
+workflows. To use it:
+
+1. Open the notebook with the badge above.
+2. Review the plain-language options.
+3. Select **Runtime → Run all**.
+4. Upload the three requested Excel or CSV files together.
+5. Download the generated results ZIP.
+
+No local installation or GitHub authentication is required. Colab processes
+uploaded files on a Google-hosted virtual machine. Use real student data only
+when this arrangement has been approved by the institution. See
+[the Colab guide](docs/COLAB.md) for complete instructions and data-handling
+notes.
+
+## Command-line use
 
 Python 3.10 or newer is required.
 
@@ -20,12 +40,6 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[semantic]"
 thesis-allocation create-templates input
-```
-
-On Windows PowerShell, activate the environment with:
-
-```powershell
-.venv\Scripts\Activate.ps1
 ```
 
 Fill the three generated workbooks and run:
@@ -45,7 +59,7 @@ available. Add `--skip-scrape` to prohibit network retrieval.
 
 ## Outputs
 
-The end-to-end command writes:
+The complete pipeline produces:
 
 | File | Purpose |
 | --- | --- |
@@ -55,9 +69,9 @@ The end-to-end command writes:
 | `supervisor_summary.xlsx` | Minimum, maximum, actual load, and capacity flags per researcher |
 | `run_report.json` | Machine-readable totals, output paths, and warnings |
 
-The command fails before writing misleading downstream results when an input is
-invalid or a complete assignment is impossible. `--allow-partial` is available
-for deliberate partial runs.
+The pipeline stops with an actionable message before producing misleading
+downstream results when an input is invalid or a complete assignment is
+impossible. Deliberate partial runs remain available.
 
 ## Individual stages
 
@@ -139,8 +153,9 @@ excluded from every replacement generated in that run.
 - Daily supervisor and promotor must be different people unless `--allow-same-person` is supplied.
 - Invalid, ambiguous, and low-confidence topic references stop the run with suggestions.
 
-See [the input contract](docs/INPUT_FORMAT.md) and
-[the algorithm description](docs/ALGORITHM.md) for details.
+See [the input contract](docs/INPUT_FORMAT.md),
+[the algorithm description](docs/ALGORITHM.md), and
+[the Colab guide](docs/COLAB.md) for details.
 
 ## Development
 
@@ -150,5 +165,5 @@ The base test suite does not download an embedding model.
 python -m pip install -e .
 python -m compileall -q src tests
 python -m unittest discover -s tests -v
+python scripts/build_colab_notebook.py --check
 ```
-
