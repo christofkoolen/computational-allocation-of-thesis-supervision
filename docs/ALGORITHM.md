@@ -38,18 +38,22 @@ Existing assignments are fixed and counted against capacity. The flow network
 then accounts for:
 
 - hard maximum capacities;
+- absolute priority for an eligible topic submitter;
 - prioritized minimum workload slots;
 - semantic similarity cost;
 - a mild incremental load-balancing cost;
-- a preference for an eligible topic submitter;
 - exclusion of the other role when distinct roles are required.
 
-Minimum slots receive priority over optional slots. If all minimum targets are
-feasible, they are filled. Otherwise the optimizer fills as many as the
-constraints permit and reports the remaining gaps.
+The objective is lexicographic. It first maximizes the number of assignments
+given to their topic submitter. Minimum workload slots, semantic similarity,
+and load balancing are considered only among solutions with that maximum.
+Submitter priority remains subject to role eligibility, exclusions, the
+distinct-role rule, and the researcher's maximum capacity. If one researcher
+submitted more assigned topics than their available capacity, the secondary
+costs determine which of those topics they supervise.
 
 The output records the raw semantic match score and whether an assignment came
-from a carry-over, topic-submitter preference, or general semantic matching.
+from a carry-over, topic-submitter priority, or general semantic matching.
 
 ## 4. Reassignment
 
