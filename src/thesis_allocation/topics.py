@@ -102,7 +102,6 @@ def allocate_topics(
 
     issues: list[str] = []
     warnings: list[str] = []
-    blocked_by_language: dict[str, list[str]] = {}
     feasible_students: set[str] = set()
 
     for student_position, student in students.iterrows():
@@ -110,13 +109,12 @@ def allocate_topics(
         for rank in (1, 2, 3):
             reference = student[f"preference_{rank}"]
             topic_id = normalize_topic_id(reference)
+            _, assigned_language = first_compatible_language(
+                student[f"preference_{rank}_languages"],
+                "",
+            )
 
             if topic_id == OWN_TOPIC_ID:
-                requested_languages = student[f"preference_{rank}_languages"]
-                _, assigned_language = first_compatible_language(
-                    requested_languages,
-                    "",
-                )
                 network.add_edge(
                     student_nodes[email],
                     sink,
@@ -145,16 +143,6 @@ def allocate_topics(
                 continue
 
             topic = topic_table.loc[topic_index]
-            compatible, assigned_language = first_compatible_language(
-                student[f"preference_{rank}_languages"],
-                topic["supervision_languages"],
-            )
-            if not compatible:
-                blocked_by_language.setdefault(email, []).append(
-                    f"{topic['topic_id']} ({topic['topic_title']}, preference {rank})"
-                )
-                continue
-
             data = {
                 "student_position": student_position,
                 "student_email": email,
@@ -192,7 +180,9 @@ def allocate_topics(
     result["own_topic_description"] = result["email"].map(
         lambda email: assignments_by_email.get(email, {}).get(
             "own_topic_description",
-            clean_text(result.loc[result["email"].eq(email), "own_topic_description"].iloc[0]),
+            clean_text(
+                result.loc[result["email"].eq(email), "own_topic_description"].iloc[0]
+            ),
         )
     )
     result["assigned_rank"] = result["email"].map(
@@ -208,14 +198,7 @@ def allocate_topics(
         details: list[str] = []
         for email in unassigned:
             if email not in feasible_students:
-                blocked = blocked_by_language.get(email, [])
-                if blocked:
-                    details.append(
-                        f"{email}: no language-compatible choice "
-                        f"({'; '.join(blocked)})"
-                    )
-                else:
-                    details.append(f"{email}: no valid topic-ID preference edge")
+                details.append(f"{email}: no valid topic-ID preference edge")
             else:
                 details.append(f"{email}: all preferred offered topics reached capacity")
         raise InfeasibleAssignmentError(
