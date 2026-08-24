@@ -23,6 +23,14 @@ One row represents one researcher.
 | `promotor_minimum_theses` | Yes for matching | Workload target for the promotor role |
 | `promotor_maximum_theses` | Yes for matching | Hard capacity; zero makes the person ineligible for this role |
 
+The `appointment` value is descriptive only; the program does not infer role
+eligibility from labels such as PhD researcher, postdoc, or professor. A person
+is eligible as a daily supervisor when `daily_supervisor_maximum_theses > 0`,
+and eligible as a promotor when `promotor_maximum_theses > 0`. Both maximums may
+be positive when someone can perform both roles; a maximum of `0` makes that
+person ineligible for that role. The corresponding minimum columns are workload
+targets, not eligibility switches.
+
 The aliases `languages`, `allowed_languages`, and `supervision_language` are
 accepted for `supervision_languages`.
 
