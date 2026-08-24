@@ -57,10 +57,15 @@ promotor matching.
 
 Choose **Reassign supervision** to replace one student's daily supervisor or
 promotor, or to replace assignments held by a departing researcher. Select the
-role and scope, then enter the target email address.
+role and scope first.
 
-Assignments outside the selected target remain fixed. Replacements remain
-subject to researcher-level supervision-language compatibility.
+- For **One student**, enter the student's email in `student_email`.
+- For **Everyone assigned to a departing supervisor**, enter the departing
+  researcher's email in `departing_researcher_email`.
+
+Only the email field corresponding to the selected scope is used. Assignments
+outside the selected target remain fixed. Replacements remain subject to
+researcher-level supervision-language compatibility.
 
 ## 3. Run the selected workflow
 
