@@ -85,8 +85,17 @@ researcher's `supervision_languages`.
 
 When a student chooses `9999`, that choice is treated as that student's own,
 unique thesis topic. It is not constrained by an offered-topic capacity. The
-`own_topic_description` is carried into the assignment output and is used as
-the topic text for semantic supervisor and promotor matching.
+`own_topic_description` belongs only to the `9999` preference, is carried into
+the assignment output, and is used as the topic text for semantic supervisor
+and promotor matching when `9999` is allocated.
+
+Because all three preference IDs must be different, `9999` can appear at most
+once. An own topic has no shared topic-capacity constraint, so ranking `9999` as
+preference 1 means it will be selected during the topic-allocation stage. Ranking
+it second or third instead makes it an always-available fallback if higher-ranked
+offered topics cannot be assigned. Daily-supervisor and promotor allocation is a
+separate stage and remains subject to researcher eligibility, language, and
+capacity constraints.
 
 By default, the final row is retained when a form export contains duplicate
 student emails. Use `--duplicate-policy error` or
