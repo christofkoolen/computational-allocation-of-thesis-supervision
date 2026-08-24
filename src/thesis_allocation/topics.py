@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from difflib import SequenceMatcher
 
 import pandas as pd
 
@@ -14,10 +13,11 @@ from thesis_allocation.errors import (
 from thesis_allocation.flow import MinCostFlow
 from thesis_allocation.languages import first_compatible_language
 from thesis_allocation.schema import (
+    OWN_TOPIC_ID,
     clean_text,
     normalize_preferences,
+    normalize_topic_id,
     normalize_topics,
-    normalized_key,
 )
 
 
@@ -32,69 +32,31 @@ class TopicAllocationResult:
 
 
 class TopicResolver:
-    """Resolve topic IDs or titles with guarded fuzzy matching."""
+    """Resolve offered thesis topics by exact topic ID only."""
 
-    def __init__(
-        self,
-        topics: pd.DataFrame,
-        *,
-        fuzzy_threshold: float = 0.90,
-        fuzzy_margin: float = 0.05,
-    ):
+    def __init__(self, topics: pd.DataFrame):
         self.topics = topics
-        self.fuzzy_threshold = fuzzy_threshold
-        self.fuzzy_margin = fuzzy_margin
-        self.lookup: dict[str, set[int]] = {}
-        for index, row in topics.iterrows():
-            for value in (row["topic_id"], row["topic_title"]):
-                key = normalized_key(value)
-                self.lookup.setdefault(key, set()).add(index)
+        self.lookup = {
+            normalize_topic_id(row["topic_id"]): index
+            for index, row in topics.iterrows()
+        }
 
-    def resolve(self, reference: object) -> tuple[int, bool]:
-        """Return a topic row index and whether fuzzy matching was used."""
+    def resolve(self, reference: object) -> int:
+        """Return the topic row index for one exact topic ID."""
 
-        key = normalized_key(reference)
-        if not key:
-            raise InputValidationError("A blank topic reference cannot be resolved")
-
-        exact = self.lookup.get(key, set())
-        if len(exact) == 1:
-            return next(iter(exact)), False
-        if len(exact) > 1:
+        topic_id = normalize_topic_id(reference)
+        if not topic_id:
+            raise InputValidationError("A blank topic ID cannot be resolved")
+        if topic_id == OWN_TOPIC_ID:
             raise InputValidationError(
-                f"Topic reference '{clean_text(reference)}' is ambiguous"
+                f"Topic ID {OWN_TOPIC_ID} is reserved for a student's own topic"
             )
-
-        topic_scores: dict[int, float] = {}
-        for candidate, indices in self.lookup.items():
-            score = SequenceMatcher(None, key, candidate).ratio()
-            for index in indices:
-                topic_scores[index] = max(topic_scores.get(index, 0.0), score)
-        scored_topics = sorted(
-            ((score, index) for index, score in topic_scores.items()),
-            reverse=True,
-        )
-        if not scored_topics:
+        try:
+            return self.lookup[topic_id]
+        except KeyError as exc:
             raise InputValidationError(
-                f"Topic reference '{clean_text(reference)}' was not found"
-            )
-        best_score, best_index = scored_topics[0]
-        second_score = scored_topics[1][0] if len(scored_topics) > 1 else 0.0
-        if (
-            best_score >= self.fuzzy_threshold
-            and best_score - second_score >= self.fuzzy_margin
-        ):
-            return best_index, True
-
-        suggestions = [
-            self.topics.at[index, "topic_title"]
-            for _, index in scored_topics[:3]
-        ]
-        suffix = f" Closest topics: {', '.join(suggestions)}." if suggestions else ""
-        raise InputValidationError(
-            f"Topic reference '{clean_text(reference)}' was not found unambiguously."
-            f"{suffix}"
-        )
+                f"Topic ID '{clean_text(reference)}' was not found in the topics file"
+            ) from exc
 
 
 def allocate_topics(
@@ -103,21 +65,15 @@ def allocate_topics(
     *,
     duplicate_policy: str = "keep-last",
     allow_partial: bool = False,
-    fuzzy_threshold: float = 0.90,
-    fuzzy_margin: float = 0.05,
 ) -> TopicAllocationResult:
-    """Allocate students to ranked choices at the lowest possible total rank cost."""
+    """Allocate students to ranked topic IDs at the lowest total rank cost."""
 
     students = normalize_preferences(
         preferences,
         duplicate_policy=duplicate_policy,
     )
     topic_table = normalize_topics(topics)
-    resolver = TopicResolver(
-        topic_table,
-        fuzzy_threshold=fuzzy_threshold,
-        fuzzy_margin=fuzzy_margin,
-    )
+    resolver = TopicResolver(topic_table)
 
     source = 0
     student_node_start = 1
@@ -151,13 +107,36 @@ def allocate_topics(
 
     for student_position, student in students.iterrows():
         email = student["email"]
-        resolved_for_student: set[str] = set()
         for rank in (1, 2, 3):
             reference = student[f"preference_{rank}"]
-            if not reference:
+            topic_id = normalize_topic_id(reference)
+
+            if topic_id == OWN_TOPIC_ID:
+                requested_languages = student[f"preference_{rank}_languages"]
+                _, assigned_language = first_compatible_language(
+                    requested_languages,
+                    "",
+                )
+                network.add_edge(
+                    student_nodes[email],
+                    sink,
+                    1,
+                    rank,
+                    data={
+                        "student_position": student_position,
+                        "student_email": email,
+                        "topic_id": OWN_TOPIC_ID,
+                        "topic_title": "Own topic",
+                        "own_topic_description": student["own_topic_description"],
+                        "rank": rank,
+                        "language": assigned_language,
+                    },
+                )
+                feasible_students.add(email)
                 continue
+
             try:
-                topic_index, fuzzy = resolver.resolve(reference)
+                topic_index = resolver.resolve(reference)
             except InputValidationError as exc:
                 issues.extend(
                     f"student '{email}', preference {rank}: {issue}"
@@ -166,37 +145,28 @@ def allocate_topics(
                 continue
 
             topic = topic_table.loc[topic_index]
-            topic_id = topic["topic_id"]
-            if topic_id in resolved_for_student:
-                continue
-            if fuzzy:
-                warnings.append(
-                    f"Fuzzy-matched '{reference}' to '{topic['topic_title']}' "
-                    f"for student '{email}'"
-                )
-
             compatible, assigned_language = first_compatible_language(
                 student[f"preference_{rank}_languages"],
                 topic["supervision_languages"],
             )
             if not compatible:
                 blocked_by_language.setdefault(email, []).append(
-                    f"{topic['topic_title']} (preference {rank})"
+                    f"{topic['topic_id']} ({topic['topic_title']}, preference {rank})"
                 )
                 continue
 
-            resolved_for_student.add(topic_id)
             data = {
                 "student_position": student_position,
                 "student_email": email,
-                "topic_id": topic_id,
+                "topic_id": topic["topic_id"],
                 "topic_title": topic["topic_title"],
+                "own_topic_description": "",
                 "rank": rank,
                 "language": assigned_language,
             }
             network.add_edge(
                 student_nodes[email],
-                topic_nodes[topic_id],
+                topic_nodes[topic["topic_id"]],
                 1,
                 rank,
                 data=data,
@@ -219,6 +189,12 @@ def allocate_topics(
     result["assigned_topic"] = result["email"].map(
         lambda email: assignments_by_email.get(email, {}).get("topic_title")
     )
+    result["own_topic_description"] = result["email"].map(
+        lambda email: assignments_by_email.get(email, {}).get(
+            "own_topic_description",
+            clean_text(result.loc[result["email"].eq(email), "own_topic_description"].iloc[0]),
+        )
+    )
     result["assigned_rank"] = result["email"].map(
         lambda email: assignments_by_email.get(email, {}).get("rank")
     ).astype("Int64")
@@ -239,9 +215,9 @@ def allocate_topics(
                         f"({'; '.join(blocked)})"
                     )
                 else:
-                    details.append(f"{email}: no valid preference edge")
+                    details.append(f"{email}: no valid topic-ID preference edge")
             else:
-                details.append(f"{email}: all preferred topics reached capacity")
+                details.append(f"{email}: all preferred offered topics reached capacity")
         raise InfeasibleAssignmentError(
             "A complete topic allocation is impossible. "
             f"Assigned {flow} of {len(students)} students.\n"

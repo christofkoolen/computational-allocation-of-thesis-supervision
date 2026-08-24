@@ -41,6 +41,7 @@ TEMPLATE_COLUMNS = {
         "preference_2_languages",
         "preference_3",
         "preference_3_languages",
+        "own_topic_description",
     ],
 }
 
@@ -65,4 +66,3 @@ def create_templates(
     for path in targets:
         write_table(pd.DataFrame(columns=TEMPLATE_COLUMNS[path.name]), path)
     return tuple(targets)
-
