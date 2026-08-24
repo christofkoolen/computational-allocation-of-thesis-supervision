@@ -13,10 +13,12 @@ from thesis_allocation.errors import (
 )
 from thesis_allocation.flow import MinCostFlow
 from thesis_allocation.schema import (
+    OWN_TOPIC_ID,
     clean_text,
     normalize_assignments,
     normalize_email,
     normalize_researchers,
+    normalize_topic_id,
     normalize_topics,
     normalized_key,
 )
@@ -78,10 +80,7 @@ class MatchResult:
 def _researcher_maps(
     researchers: pd.DataFrame,
 ) -> tuple[dict[str, pd.Series], dict[str, list[pd.Series]]]:
-    by_email = {
-        row["email"]: row
-        for _, row in researchers.iterrows()
-    }
+    by_email = {row["email"]: row for _, row in researchers.iterrows()}
     by_name: dict[str, list[pd.Series]] = {}
     for _, row in researchers.iterrows():
         by_name.setdefault(normalized_key(row["full_name"]), []).append(row)
@@ -155,23 +154,39 @@ def _attach_topic_context(
     topics: pd.DataFrame,
 ) -> pd.DataFrame:
     result = assignments.copy()
-    resolver = TopicResolver(topics, fuzzy_threshold=0.95, fuzzy_margin=0.05)
+    resolver = TopicResolver(topics)
     issues: list[str] = []
 
     result["_topic_text"] = ""
     result["_submitter_email"] = ""
     for index, row in result.iterrows():
-        reference = clean_text(row.get("assigned_topic_id")) or clean_text(
-            row.get("assigned_topic")
-        )
+        reference = normalize_topic_id(row.get("assigned_topic_id"))
         if not reference:
+            issues.append(
+                f"student '{row['email']}': assigned_topic_id is blank; "
+                "topic titles are no longer used as identifiers"
+            )
             continue
+
+        if reference == OWN_TOPIC_ID:
+            description = clean_text(row.get("own_topic_description"))
+            if not description:
+                issues.append(
+                    f"student '{row['email']}': topic ID {OWN_TOPIC_ID} requires "
+                    "own_topic_description"
+                )
+                continue
+            result.at[index, "assigned_topic_id"] = OWN_TOPIC_ID
+            result.at[index, "assigned_topic"] = "Own topic"
+            result.at[index, "_topic_text"] = description
+            result.at[index, "_submitter_email"] = ""
+            continue
+
         try:
-            topic_index, _ = resolver.resolve(reference)
+            topic_index = resolver.resolve(reference)
         except InputValidationError as exc:
             issues.extend(
-                f"student '{row['email']}': {issue}"
-                for issue in exc.issues
+                f"student '{row['email']}': {issue}" for issue in exc.issues
             )
             continue
         topic = topics.loc[topic_index]
@@ -308,9 +323,7 @@ def _assign_role(
 
     other = _other_role(spec)
     for student_offset, assignment_index in enumerate(target_indices):
-        other_email = normalize_email(
-            result.at[assignment_index, other.email_column]
-        )
+        other_email = normalize_email(result.at[assignment_index, other.email_column])
         submitter_email = normalize_email(
             result.at[assignment_index, "_submitter_email"]
         )
@@ -488,11 +501,11 @@ def match_supervisors(
     )
     topic_table = normalize_topics(topics)
     result = normalize_assignments(assignments)
-    missing_topics = result["assigned_topic"].map(clean_text).eq("")
+    missing_topics = result["assigned_topic_id"].map(normalize_topic_id).eq("")
     if missing_topics.any() and not allow_partial:
         students = ", ".join(result.loc[missing_topics, "email"].tolist())
         raise InputValidationError(
-            f"Assigned topic is blank for student(s): {students}"
+            f"Assigned topic ID is blank for student(s): {students}"
         )
     result = _attach_topic_context(result, topic_table)
     for spec in ROLE_SPECS.values():
