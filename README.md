@@ -19,13 +19,21 @@ The Colab notebook is intended for colleagues who do not use Python or a
 terminal. Its numbered sections are ordered as follows:
 
 1. optionally download blank input files; skip this when the files are already prepared;
-2. run thesis topic allocation followed by daily-supervisor and promotor allocation;
-3. reassign an individual student's supervisor/promotor or assignments held by a departing researcher.
+2. choose a workflow:
+   - **2.a** complete thesis-topic, daily-supervisor, and promotor allocation;
+   - **2.b** reassignment of an individual student's supervisor/promotor or assignments held by a departing researcher;
+3. run the selected workflow and upload the required files.
 
-Students submit their top three thesis preferences using exact topic IDs. Topic
-ID `9999` is reserved for a student's own topic and requires a short
-`own_topic_description`. Topic titles are not used as preference identifiers and
-there is no fuzzy title matching.
+Students submit their top three thesis preferences using three different exact
+topic IDs. Topic ID `9999` is reserved for a student's own topic, can therefore
+appear at most once, and requires a short `own_topic_description`. Topic titles
+are not used as preference identifiers and there is no fuzzy title matching.
+
+An own topic does not share an offered-topic capacity. Therefore, ranking `9999`
+first means it is selected during topic allocation. Ranking it second or third
+makes it an always-available fallback if a higher-ranked offered topic cannot be
+assigned. Daily-supervisor and promotor allocation happens afterwards and remains
+subject to researcher eligibility, supervision language, and capacity constraints.
 
 Supervision languages belong to researcher records, not topic records. A
 student's selected supervision language is carried with the topic assignment
@@ -149,7 +157,8 @@ excluded from every replacement generated in that run.
 ## Policy behavior
 
 - Students provide three ranked topic IDs rather than typing topic titles.
-- Topic ID `9999` represents a student-specific own topic and requires `own_topic_description`.
+- Topic ID `9999` represents a student-specific own topic, may appear at most once, and requires `own_topic_description`.
+- Ranking `9999` first guarantees that it is selected during topic allocation because own topics have no shared topic-capacity constraint.
 - Offered-topic IDs are matched exactly; fuzzy title matching is not used.
 - Topic ranks cost exactly 1, 2, and 3.
 - Offered-topic capacities are hard constraints; own topics are student-specific and do not consume an offered-topic capacity.
