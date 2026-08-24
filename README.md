@@ -27,6 +27,10 @@ ID `9999` is reserved for a student's own topic and requires a short
 `own_topic_description`. Topic titles are not used as preference identifiers and
 there is no fuzzy title matching.
 
+Supervision languages belong to researcher records, not topic records. A
+student's selected supervision language is carried with the topic assignment
+and is enforced when daily supervisors and promotors are matched.
+
 No local installation or GitHub authentication is required. Colab processes
 uploaded files on a Google-hosted virtual machine. Use real student data only
 when this arrangement has been approved by the institution. See
@@ -66,9 +70,9 @@ The complete pipeline produces:
 | File | Purpose |
 | --- | --- |
 | `researchers_enriched.xlsx` | Researcher input plus retrieved text and per-row scrape status |
-| `topic_assignments.xlsx` | Ranked-topic allocation, selected language, rank, and cost |
+| `topic_assignments.xlsx` | Ranked-topic allocation, selected supervision language, rank, and cost |
 | `final_assignments.xlsx` | Topic, daily supervisor, promotor, match scores, and assignment source |
-| `supervisor_summary.xlsx` | Minimum, maximum, actual load, and capacity flags per researcher |
+| `supervisor_summary.xlsx` | Researcher languages, minimums, maximums, actual load, and capacity flags |
 | `run_report.json` | Machine-readable totals, output paths, and warnings |
 
 The pipeline stops with an actionable message before producing misleading
@@ -149,12 +153,13 @@ excluded from every replacement generated in that run.
 - Offered-topic IDs are matched exactly; fuzzy title matching is not used.
 - Topic ranks cost exactly 1, 2, and 3.
 - Offered-topic capacities are hard constraints; own topics are student-specific and do not consume an offered-topic capacity.
-- Language compatibility is enforced while optimizing, rather than checked after allocation.
-- Existing supervisor assignments are treated as fixed carry-overs.
+- Topics do not carry language restrictions.
+- Researcher `supervision_languages` determine language eligibility for daily-supervisor and promotor matching.
+- Existing supervisor assignments are treated as fixed carry-overs and must satisfy the selected supervision language when one is specified.
 - A researcher is eligible for a role when that role's maximum capacity is greater than zero.
 - Minimum supervision targets are prioritized before optional capacity.
 - Semantic similarity is optimized globally with a mild load-balancing cost.
-- An eligible topic submitter has absolute assignment priority up to their maximum capacity.
+- An eligible topic submitter has absolute assignment priority up to their maximum capacity, subject to language compatibility.
 - Daily supervisor and promotor must be different people unless `--allow-same-person` is supplied.
 - Unknown topic IDs and invalid own-topic submissions stop the run with actionable validation errors.
 
