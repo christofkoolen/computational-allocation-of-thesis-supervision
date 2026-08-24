@@ -16,19 +16,16 @@ class TopicAllocationTests(unittest.TestCase):
                     "topic_id": "A",
                     "topic_title": "Alpha",
                     "capacity": 1,
-                    "supervision_languages": "English",
                 },
                 {
                     "topic_id": "B",
                     "topic_title": "Beta",
                     "capacity": 1,
-                    "supervision_languages": "English; Dutch",
                 },
                 {
                     "topic_id": "C",
                     "topic_title": "Gamma",
                     "capacity": 1,
-                    "supervision_languages": "English",
                 },
             ]
         )
@@ -67,18 +64,18 @@ class TopicAllocationTests(unittest.TestCase):
         self.assertEqual(set(result.assignments["assigned_topic_id"]), {"A", "B", "C"})
         self.assertEqual(result.assignments["assigned_cost"].sum(), 5)
 
-    def test_language_compatibility_is_part_of_the_optimization(self) -> None:
+    def test_topic_allocation_carries_selected_supervision_language(self) -> None:
         preferences = pd.DataFrame(
             [
                 {
                     "full_name": "Student",
                     "email": "student@example.org",
                     "preference_1": "A",
-                    "preference_1_languages": "Dutch",
+                    "preference_1_languages": "Dutch; English",
                     "preference_2": "B",
-                    "preference_2_languages": "Dutch",
+                    "preference_2_languages": "English",
                     "preference_3": "C",
-                    "preference_3_languages": "Dutch",
+                    "preference_3_languages": "English",
                 }
             ]
         )
@@ -86,8 +83,8 @@ class TopicAllocationTests(unittest.TestCase):
         result = allocate_topics(preferences, self.topics)
         assignment = result.assignments.iloc[0]
 
-        self.assertEqual(assignment["assigned_topic_id"], "B")
-        self.assertEqual(assignment["assigned_rank"], 2)
+        self.assertEqual(assignment["assigned_topic_id"], "A")
+        self.assertEqual(assignment["assigned_rank"], 1)
         self.assertEqual(assignment["assigned_language"], "Dutch")
 
     def test_title_is_not_accepted_in_place_of_topic_id(self) -> None:

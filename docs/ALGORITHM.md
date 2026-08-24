@@ -20,10 +20,12 @@ Each student, offered topic, and capacity is represented in a flow network:
 - each offered topic has its declared capacity to the sink;
 - a student's own-topic preference (`9999`) has a student-specific edge to the sink.
 
-Language-incompatible offered-topic edges are omitted. A successive shortest
-augmenting-path solver computes maximum flow at minimum total cost. Therefore a
-complete result has the smallest possible sum of preference ranks across all
-students.
+Topics do not have language restrictions. A successive shortest augmenting-path
+solver computes maximum flow at minimum total cost, so a complete result has the
+smallest possible sum of preference ranks across all students. When the selected
+preference contains one or more requested supervision languages, the first
+listed language is carried forward as `assigned_language` for the supervision
+stage.
 
 Preferences resolve by exact topic ID only. Topic titles are display fields and
 are never used to identify a preference. There is no fuzzy or approximate title
@@ -41,9 +43,15 @@ The production backend creates normalized sentence-transformer embeddings and
 uses cosine similarity.
 
 Daily supervisors and promotors are optimized as separate global flow problems.
-Existing assignments are fixed and counted against capacity. The flow network
-then accounts for:
+Existing assignments are fixed and counted against capacity. Each researcher
+may declare `supervision_languages`; when `assigned_language` is populated for a
+student, only researchers who support that language receive an assignment edge.
+A blank researcher language field is treated as unrestricted for backwards
+compatibility.
 
+The flow network then accounts for:
+
+- researcher-level supervision-language compatibility;
 - hard maximum capacities;
 - absolute priority for an eligible offered-topic submitter;
 - prioritized minimum workload slots;
@@ -52,15 +60,19 @@ then accounts for:
 - exclusion of the other role when distinct roles are required.
 
 The objective is lexicographic. It first maximizes the number of assignments
-given to their topic submitter. Minimum workload slots, semantic similarity,
-and load balancing are considered only among solutions with that maximum.
-Submitter priority remains subject to role eligibility, exclusions, the
+given to their topic submitter among language-compatible and otherwise eligible
+researchers. Minimum workload slots, semantic similarity, and load balancing are
+considered only among solutions with that maximum. Submitter priority remains
+subject to language compatibility, role eligibility, exclusions, the
 distinct-role rule, and the researcher's maximum capacity. If one researcher
 submitted more assigned topics than their available capacity, the secondary
 costs determine which of those topics they supervise.
 
-Own topics have no topic submitter, so they are matched on semantic fit,
-workload constraints, and capacity.
+Own topics have no topic submitter, so they are matched on language eligibility,
+semantic fit, workload constraints, and capacity.
+
+Existing carry-over supervisors and promotors are validated against the selected
+`assigned_language` before they are kept fixed.
 
 The output records the raw semantic match score and whether an assignment came
 from a carry-over, topic-submitter priority, or general semantic matching.
@@ -69,8 +81,8 @@ from a carry-over, topic-submitter priority, or general semantic matching.
 
 The reassignment command clears only the selected student's role or the
 assignments held by a selected departing researcher. All other assignments
-remain fixed and seed the current workload. The same capacity-constrained
-matching algorithm then fills only those cleared rows.
+remain fixed and seed the current workload. The same capacity-constrained and
+language-aware matching algorithm then fills only those cleared rows.
 
 The output includes a change log with the previous assignee, replacement,
 semantic score, and assignment source.

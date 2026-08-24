@@ -15,6 +15,7 @@ TEMPLATE_COLUMNS = {
         "full_name",
         "email",
         "appointment",
+        "supervision_languages",
         "profile_url",
         "publications_url",
         "profile_description",
@@ -30,7 +31,6 @@ TEMPLATE_COLUMNS = {
         "topic_description",
         "submitter_email",
         "capacity",
-        "supervision_languages",
     ],
     "student_preferences.xlsx": [
         "full_name",

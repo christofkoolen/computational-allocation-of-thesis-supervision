@@ -20,6 +20,10 @@ The student-preference template contains three required preference columns for
 exact thesis topic IDs. Topic ID `9999` is reserved for an own topic; when a
 student selects it, `own_topic_description` must contain a short description.
 
+The researcher template contains `supervision_languages`, which records the
+languages in which each researcher can supervise. The topic template has no
+language column because topics themselves do not determine language eligibility.
+
 ## 2. Thesis topic and supervisor allocation
 
 Choose **Complete allocation** as the workflow, review the complete-allocation
@@ -31,7 +35,9 @@ assigns daily supervisors and promotors. It downloads
 `thesis_allocation_results.zip` when the workflow completes.
 
 Topic preferences are matched by exact topic ID only. Typed titles, approximate
-titles, and fuzzy matching are not used.
+titles, and fuzzy matching are not used. A selected student supervision language
+is checked against researcher `supervision_languages` during daily-supervisor and
+promotor matching.
 
 ## 3. Reassign individual researchers
 
@@ -42,7 +48,8 @@ enter the target email address.
 Select **Runtime → Run all** and upload the previous final assignments,
 researcher file, and topic file together. The notebook downloads
 `thesis_reassignment_results.zip` when finished. Assignments outside the
-selected target remain fixed.
+selected target remain fixed. Replacements remain subject to researcher-level
+supervision-language compatibility.
 
 ## Data handling
 

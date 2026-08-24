@@ -12,6 +12,7 @@ from thesis_allocation.errors import (
     InputValidationError,
 )
 from thesis_allocation.flow import MinCostFlow
+from thesis_allocation.languages import first_compatible_language
 from thesis_allocation.schema import (
     OWN_TOPIC_ID,
     clean_text,
@@ -87,6 +88,19 @@ def _researcher_maps(
     return by_email, by_name
 
 
+def _supports_assignment_language(
+    assigned_language: object,
+    supervision_languages: object,
+) -> bool:
+    """Return whether a researcher can supervise in the assignment language."""
+
+    compatible, _ = first_compatible_language(
+        assigned_language,
+        supervision_languages,
+    )
+    return compatible
+
+
 def _canonicalize_preassignments(
     assignments: pd.DataFrame,
     researchers: pd.DataFrame,
@@ -139,6 +153,19 @@ def _canonicalize_preassignments(
                 f"name and email"
             )
             continue
+
+        assigned_language = clean_text(row.get("assigned_language"))
+        if not _supports_assignment_language(
+            assigned_language,
+            candidate["supervision_languages"],
+        ):
+            issues.append(
+                f"student '{row['email']}' has preassigned {spec.label.casefold()} "
+                f"'{candidate['email']}' who does not supervise in "
+                f"'{assigned_language}'"
+            )
+            continue
+
         result.at[index, spec.email_column] = candidate["email"]
         result.at[index, spec.name_column] = candidate["full_name"]
         if not clean_text(result.at[index, spec.source_column]):
@@ -339,6 +366,11 @@ def _assign_role(
         submitter_email = normalize_email(
             result.at[assignment_index, "_submitter_email"]
         )
+        assigned_language = (
+            clean_text(result.at[assignment_index, "assigned_language"])
+            if "assigned_language" in result.columns
+            else ""
+        )
         for candidate_offset, candidate in candidates.iterrows():
             candidate_email = candidate["email"]
             if (
@@ -347,6 +379,12 @@ def _assign_role(
                 and candidate_email == other_email
             ):
                 continue
+            if not _supports_assignment_language(
+                assigned_language,
+                candidate["supervision_languages"],
+            ):
+                continue
+
             raw_similarity = float(similarity[student_offset, candidate_offset])
             if not np.isfinite(raw_similarity):
                 raw_similarity = 0.0
@@ -388,7 +426,8 @@ def _assign_role(
         raise InfeasibleAssignmentError(
             f"A complete {spec.label.casefold()} assignment is impossible. "
             f"Assigned {flow} of {len(target_indices)} open students with "
-            f"{available_capacity} available slots. Unassigned: {students}"
+            f"{available_capacity} available slots before language filtering. "
+            f"Unassigned: {students}"
         )
 
     for item in selected:
@@ -407,7 +446,8 @@ def _assign_role(
     if unassigned_indices:
         warnings.append(
             f"Partial {spec.label.casefold()} assignment: "
-            f"{len(unassigned_indices)} student(s) remain open"
+            f"{len(unassigned_indices)} student(s) remain open after capacity, "
+            "role, and language constraints"
         )
 
     final_load = (
@@ -459,6 +499,7 @@ def build_workload_summary(
             "full_name",
             "email",
             "appointment",
+            "supervision_languages",
             "daily_supervisor_minimum_theses",
             "daily_supervisor_maximum_theses",
             "promotor_minimum_theses",
