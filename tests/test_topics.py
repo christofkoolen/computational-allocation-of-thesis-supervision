@@ -77,6 +77,8 @@ class TopicAllocationTests(unittest.TestCase):
                     "preference_1_languages": "Dutch",
                     "preference_2": "B",
                     "preference_2_languages": "Dutch",
+                    "preference_3": "C",
+                    "preference_3_languages": "Dutch",
                 }
             ]
         )
@@ -88,33 +90,15 @@ class TopicAllocationTests(unittest.TestCase):
         self.assertEqual(assignment["assigned_rank"], 2)
         self.assertEqual(assignment["assigned_language"], "Dutch")
 
-    def test_guarded_fuzzy_matching_reports_use(self) -> None:
+    def test_title_is_not_accepted_in_place_of_topic_id(self) -> None:
         preferences = pd.DataFrame(
             [
                 {
                     "full_name": "Student",
                     "email": "student@example.org",
-                    "preference_1": "Alphaa",
-                }
-            ]
-        )
-
-        result = allocate_topics(
-            preferences,
-            self.topics,
-            fuzzy_threshold=0.80,
-        )
-
-        self.assertEqual(result.assignments.iloc[0]["assigned_topic_id"], "A")
-        self.assertTrue(any("Fuzzy-matched" in warning for warning in result.warnings))
-
-    def test_unknown_topic_stops_with_suggestions(self) -> None:
-        preferences = pd.DataFrame(
-            [
-                {
-                    "full_name": "Student",
-                    "email": "student@example.org",
-                    "preference_1": "Completely unrelated",
+                    "preference_1": "Alpha",
+                    "preference_2": "B",
+                    "preference_3": "C",
                 }
             ]
         )
@@ -122,9 +106,68 @@ class TopicAllocationTests(unittest.TestCase):
         with self.assertRaises(InputValidationError) as raised:
             allocate_topics(preferences, self.topics)
 
-        self.assertIn("Closest topics", str(raised.exception))
+        self.assertIn("Topic ID 'Alpha' was not found", str(raised.exception))
+
+    def test_unknown_topic_id_stops_without_fuzzy_matching(self) -> None:
+        preferences = pd.DataFrame(
+            [
+                {
+                    "full_name": "Student",
+                    "email": "student@example.org",
+                    "preference_1": "A-typo",
+                    "preference_2": "B",
+                    "preference_3": "C",
+                }
+            ]
+        )
+
+        with self.assertRaises(InputValidationError) as raised:
+            allocate_topics(preferences, self.topics)
+
+        self.assertIn("Topic ID 'A-typo' was not found", str(raised.exception))
+
+    def test_own_topic_requires_description(self) -> None:
+        preferences = pd.DataFrame(
+            [
+                {
+                    "full_name": "Student",
+                    "email": "student@example.org",
+                    "preference_1": 9999,
+                    "preference_2": "A",
+                    "preference_3": "B",
+                }
+            ]
+        )
+
+        with self.assertRaises(InputValidationError) as raised:
+            allocate_topics(preferences, self.topics)
+
+        self.assertIn("own_topic_description", str(raised.exception))
+
+    def test_own_topic_is_student_specific_and_keeps_description(self) -> None:
+        preferences = pd.DataFrame(
+            [
+                {
+                    "full_name": "Student",
+                    "email": "student@example.org",
+                    "preference_1": 9999,
+                    "preference_2": "A",
+                    "preference_3": "B",
+                    "own_topic_description": "AI-assisted access to justice",
+                }
+            ]
+        )
+
+        result = allocate_topics(preferences, self.topics)
+        assignment = result.assignments.iloc[0]
+
+        self.assertEqual(assignment["assigned_topic_id"], "9999")
+        self.assertEqual(assignment["assigned_topic"], "Own topic")
+        self.assertEqual(
+            assignment["own_topic_description"],
+            "AI-assisted access to justice",
+        )
 
 
 if __name__ == "__main__":
     unittest.main()
-

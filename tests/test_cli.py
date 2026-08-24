@@ -17,9 +17,8 @@ class CliTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertTrue((Path(directory) / "researchers.xlsx").is_file())
             self.assertTrue((Path(directory) / "topics.xlsx").is_file())
-            self.assertTrue(
-                (Path(directory) / "student_preferences.xlsx").is_file()
-            )
+            preferences = pd.read_excel(Path(directory) / "student_preferences.xlsx")
+            self.assertIn("own_topic_description", preferences.columns)
 
     def test_allocates_csv_inputs_without_machine_specific_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -29,11 +28,9 @@ class CliTests(unittest.TestCase):
             output_path = root / "assignments.csv"
             pd.DataFrame(
                 [
-                    {
-                        "topic_id": "one",
-                        "topic_title": "Topic One",
-                        "capacity": 1,
-                    }
+                    {"topic_id": "one", "topic_title": "Topic One", "capacity": 1},
+                    {"topic_id": "two", "topic_title": "Topic Two", "capacity": 1},
+                    {"topic_id": "three", "topic_title": "Topic Three", "capacity": 1},
                 ]
             ).to_csv(topics_path, index=False)
             pd.DataFrame(
@@ -42,6 +39,8 @@ class CliTests(unittest.TestCase):
                         "full_name": "Student",
                         "email": "student@example.org",
                         "preference_1": "one",
+                        "preference_2": "two",
+                        "preference_3": "three",
                     }
                 ]
             ).to_csv(preferences_path, index=False)
@@ -101,7 +100,19 @@ class CliTests(unittest.TestCase):
                         "topic_title": "Privacy law",
                         "topic_description": "privacy rights safeguards",
                         "capacity": 1,
-                    }
+                    },
+                    {
+                        "topic_id": "data",
+                        "topic_title": "Data engineering",
+                        "topic_description": "data engineering systems",
+                        "capacity": 1,
+                    },
+                    {
+                        "topic_id": "contracts",
+                        "topic_title": "Contract law",
+                        "topic_description": "commercial contracts",
+                        "capacity": 1,
+                    },
                 ]
             ).to_excel(topics_path, index=False)
             pd.DataFrame(
@@ -110,6 +121,8 @@ class CliTests(unittest.TestCase):
                         "full_name": "Student",
                         "email": "student@example.org",
                         "preference_1": "privacy",
+                        "preference_2": "data",
+                        "preference_3": "contracts",
                     }
                 ]
             ).to_excel(preferences_path, index=False)

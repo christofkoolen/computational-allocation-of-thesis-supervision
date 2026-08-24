@@ -11,38 +11,38 @@ Open
 The notebook loads the allocation package from the public GitHub repository.
 It does not require a GitHub account or access token.
 
-## Complete allocation
+## 1. Optional input templates
 
-1. Leave **Complete allocation** selected.
-2. Choose semantic matching for normal use or fast lexical matching for a
-   quicker test.
-3. Enable researcher-profile retrieval only when the uploaded researcher file
-   contains profile URLs that should be retrieved.
-4. Select **Runtime → Run all**.
-5. Upload the researcher, topic, and student-preference files together when the
-   upload window appears.
-6. Wait for `thesis_allocation_results.zip` to download.
+The first numbered section can generate the three blank input workbooks. Skip
+this section when the files are already prepared.
 
-The notebook identifies the three inputs from their columns, so their filenames
-do not need to match the template filenames.
+The student-preference template contains three required preference columns for
+exact thesis topic IDs. Topic ID `9999` is reserved for an own topic; when a
+student selects it, `own_topic_description` must contain a short description.
 
-## Reassignment
+## 2. Thesis topic and supervisor allocation
 
-1. Select **Reassign supervision**.
-2. Select the role and whether the target is one student or everyone assigned
-   to a departing supervisor.
-3. Enter the target email address.
-4. Select **Runtime → Run all**.
-5. Upload the previous final assignments, researcher file, and topic file
-   together.
-6. Wait for `thesis_reassignment_results.zip` to download.
+Choose **Complete allocation** as the workflow, review the complete-allocation
+options, and select **Runtime → Run all**.
 
-Assignments outside the selected target remain fixed.
+Upload the researcher, topic, and student-preference files together when the
+upload window appears. The notebook allocates thesis topics first and then
+assigns daily supervisors and promotors. It downloads
+`thesis_allocation_results.zip` when the workflow completes.
 
-## Input templates
+Topic preferences are matched by exact topic ID only. Typed titles, approximate
+titles, and fuzzy matching are not used.
 
-The final notebook cell can generate the three blank input workbooks. Set
-`download_blank_templates` to `True` and run that cell.
+## 3. Reassign individual researchers
+
+Choose **Reassign supervision** as the workflow. Select the role and whether the
+target is one student or everyone assigned to a departing researcher, then
+enter the target email address.
+
+Select **Runtime → Run all** and upload the previous final assignments,
+researcher file, and topic file together. The notebook downloads
+`thesis_reassignment_results.zip` when finished. Assignments outside the
+selected target remain fixed.
 
 ## Data handling
 
