@@ -4,6 +4,7 @@ import unittest
 
 import pandas as pd
 
+from thesis_allocation.errors import InputValidationError
 from thesis_allocation.matching import match_supervisors
 from thesis_allocation.replacement import reassign_supervision
 from thesis_allocation.similarity import TfidfSimilarity
@@ -14,6 +15,7 @@ def researcher(
     email: str,
     profile: str,
     *,
+    languages: str = "",
     daily_min: int = 0,
     daily_max: int = 1,
     promotor_min: int = 0,
@@ -23,6 +25,7 @@ def researcher(
         "full_name": name,
         "email": email,
         "appointment": "researcher",
+        "supervision_languages": languages,
         "profile_description": profile,
         "publication_list": "",
         "daily_supervisor_minimum_theses": daily_min,
@@ -110,6 +113,135 @@ class SupervisorMatchingTests(unittest.TestCase):
             set(output["promotor_email"]),
             {"alice@example.org", "bob@example.org"},
         )
+
+    def test_researcher_language_filters_daily_supervisor_candidates(self) -> None:
+        researchers = pd.DataFrame(
+            [
+                researcher(
+                    "Alice Strong Match",
+                    "alice@example.org",
+                    "privacy law rights safeguards",
+                    languages="Dutch",
+                    promotor_max=0,
+                ),
+                researcher(
+                    "Bob English",
+                    "bob@example.org",
+                    "medieval history",
+                    languages="English",
+                    promotor_max=0,
+                ),
+            ]
+        )
+        assignments = pd.DataFrame(
+            [
+                {
+                    "full_name": "Student",
+                    "email": "student@example.org",
+                    "assigned_topic_id": "privacy",
+                    "assigned_topic": "Privacy law",
+                    "assigned_language": "English",
+                }
+            ]
+        )
+
+        result = match_supervisors(
+            assignments,
+            researchers,
+            self.topics,
+            self.backend,
+            roles=("daily_supervisor",),
+        )
+
+        self.assertEqual(
+            result.assignments.iloc[0]["daily_supervisor_email"],
+            "bob@example.org",
+        )
+
+    def test_submitter_priority_requires_language_compatibility(self) -> None:
+        researchers = pd.DataFrame(
+            [
+                researcher(
+                    "Alice Submitter",
+                    "alice@example.org",
+                    "privacy law rights safeguards",
+                    languages="Dutch",
+                    promotor_max=0,
+                ),
+                researcher(
+                    "Bob English",
+                    "bob@example.org",
+                    "privacy governance",
+                    languages="English",
+                    promotor_max=0,
+                ),
+            ]
+        )
+        topics = self.topics.copy()
+        topics.loc[
+            topics["topic_id"] == "privacy",
+            "submitter_email",
+        ] = "alice@example.org"
+        assignments = pd.DataFrame(
+            [
+                {
+                    "full_name": "Student",
+                    "email": "student@example.org",
+                    "assigned_topic_id": "privacy",
+                    "assigned_topic": "Privacy law",
+                    "assigned_language": "English",
+                }
+            ]
+        )
+
+        result = match_supervisors(
+            assignments,
+            researchers,
+            topics,
+            self.backend,
+            roles=("daily_supervisor",),
+        )
+
+        output = result.assignments.iloc[0]
+        self.assertEqual(output["daily_supervisor_email"], "bob@example.org")
+        self.assertEqual(output["daily_supervisor_assignment_source"], "semantic")
+
+    def test_incompatible_preassignment_is_rejected(self) -> None:
+        researchers = pd.DataFrame(
+            [
+                researcher(
+                    "Alice",
+                    "alice@example.org",
+                    "privacy law",
+                    languages="Dutch",
+                    promotor_max=0,
+                )
+            ]
+        )
+        assignments = pd.DataFrame(
+            [
+                {
+                    "full_name": "Student",
+                    "email": "student@example.org",
+                    "assigned_topic_id": "privacy",
+                    "assigned_topic": "Privacy law",
+                    "assigned_language": "English",
+                    "daily_supervisor": "Alice",
+                    "daily_supervisor_email": "alice@example.org",
+                }
+            ]
+        )
+
+        with self.assertRaises(InputValidationError) as raised:
+            match_supervisors(
+                assignments,
+                researchers,
+                self.topics,
+                self.backend,
+                roles=("daily_supervisor",),
+            )
+
+        self.assertIn("does not supervise in 'English'", str(raised.exception))
 
     def test_minimum_slots_take_priority_when_feasible(self) -> None:
         researchers = pd.DataFrame(
