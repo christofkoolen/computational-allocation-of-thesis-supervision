@@ -43,13 +43,39 @@ class ColabNotebookTests(unittest.TestCase):
             if cell["cell_type"] == "markdown"
         )
         first = markdown.index("## 1. Optional: download blank input files")
-        second = markdown.index(
-            "## 2. Thesis topic, daily supervisor, and promotor allocation"
+        second = markdown.index("## 2. Choose a workflow")
+        workflow_one = markdown.index(
+            "### 2.a Workflow 1: thesis topic and supervision allocation"
         )
-        third = markdown.index("## 3. Reassign individual researchers")
+        workflow_two = markdown.index("### 2.b Workflow 2: reassignment")
+        third = markdown.index("## 3. Run the selected workflow")
         self.assertLess(first, second)
-        self.assertLess(second, third)
+        self.assertLess(second, workflow_one)
+        self.assertLess(workflow_one, workflow_two)
+        self.assertLess(workflow_two, third)
         self.assertIn("skip section 1", markdown.casefold())
+
+    def test_notebook_explains_own_topic_and_reassignment_email_fields(self) -> None:
+        markdown = "\n".join(
+            "".join(cell["source"])
+            for cell in self.notebook["cells"]
+            if cell["cell_type"] == "markdown"
+        )
+        self.assertIn("ranking `9999` first", markdown)
+        self.assertIn("`student_email`", markdown)
+        self.assertIn("`departing_researcher_email`", markdown)
+
+    def test_template_columns_keep_languages_on_researchers(self) -> None:
+        template_cell = next(
+            cell
+            for cell in self.notebook["cells"]
+            if cell.get("metadata", {}).get("id") == "templates"
+        )
+        source = "".join(template_cell["source"])
+        researcher_block, remainder = source.split('"topics.xlsx":', maxsplit=1)
+        topic_block = remainder.split('"student_preferences.xlsx":', maxsplit=1)[0]
+        self.assertIn('"supervision_languages"', researcher_block)
+        self.assertNotIn('"supervision_languages"', topic_block)
 
     def test_notebook_contains_no_saved_outputs_and_code_compiles(self) -> None:
         code_cells = [
@@ -112,7 +138,7 @@ class ColabNotebookTests(unittest.TestCase):
                 task="Reassign supervision",
                 reassignment_role="Daily supervisor",
                 reassignment_scope="One student",
-                target_email="student@example.org",
+                student_email="student@example.org",
             )
             with zipfile.ZipFile(self._bytes_file(downloaded)) as archive:
                 log = pd.read_csv(
@@ -165,7 +191,8 @@ class ColabNotebookTests(unittest.TestCase):
             "duplicate_student_submissions": "Keep last submission",
             "reassignment_role": "Daily supervisor",
             "reassignment_scope": "One student",
-            "target_email": "",
+            "student_email": "",
+            "departing_researcher_email": "",
             **overrides,
         }
 

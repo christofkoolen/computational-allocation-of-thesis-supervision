@@ -17,8 +17,16 @@ The first numbered section can generate the three blank input workbooks. Skip
 this section when the files are already prepared.
 
 The student-preference template contains three required preference columns for
-exact thesis topic IDs. Topic ID `9999` is reserved for an own topic; when a
-student selects it, `own_topic_description` must contain a short description.
+three different exact thesis topic IDs. Topic ID `9999` is reserved for an own
+topic, so it can appear at most once. When a student selects it,
+`own_topic_description` must contain a short description that belongs only to
+that `9999` preference.
+
+An own topic does not share an offered-topic capacity. Therefore, if a student
+ranks `9999` first, it is selected during topic allocation. If `9999` is ranked
+second or third, it acts as an always-available fallback when a higher-ranked
+offered topic cannot be assigned. Supervisor and promotor allocation happens
+afterwards and remains subject to researcher eligibility, language, and capacity.
 
 The researcher template contains `supervision_languages`, which records the
 languages in which each researcher can supervise. The topic template has no
@@ -30,32 +38,47 @@ columns: a maximum above `0` makes the researcher eligible for that role, while
 `0` makes them ineligible. The minimum columns are workload targets rather than
 role categories.
 
-## 2. Thesis topic and supervisor allocation
+## 2. Choose a workflow
 
-Choose **Complete allocation** as the workflow, review the complete-allocation
-options, and select **Runtime → Run all**.
+Select the workflow before running the notebook.
 
-Upload the researcher, topic, and student-preference files together when the
-upload window appears. The notebook allocates thesis topics first and then
-assigns daily supervisors and promotors. It downloads
-`thesis_allocation_results.zip` when the workflow completes.
+### 2.a Workflow 1: thesis topic and supervision allocation
+
+Choose **Complete allocation** for the normal annual allocation. Students must
+provide their top three preferences as exact topic IDs rather than typed titles.
+Review the complete-allocation options before running.
 
 Topic preferences are matched by exact topic ID only. Typed titles, approximate
 titles, and fuzzy matching are not used. A selected student supervision language
 is checked against researcher `supervision_languages` during daily-supervisor and
 promotor matching.
 
-## 3. Reassign individual researchers
+### 2.b Workflow 2: reassignment
 
-Choose **Reassign supervision** as the workflow. Select the role and whether the
-target is one student or everyone assigned to a departing researcher, then
-enter the target email address.
+Choose **Reassign supervision** to replace one student's daily supervisor or
+promotor, or to replace assignments held by a departing researcher. Select the
+role and scope first.
 
-Select **Runtime → Run all** and upload the previous final assignments,
-researcher file, and topic file together. The notebook downloads
-`thesis_reassignment_results.zip` when finished. Assignments outside the
-selected target remain fixed. Replacements remain subject to researcher-level
-supervision-language compatibility.
+- For **One student**, enter the student's email in `student_email`.
+- For **Everyone assigned to a departing supervisor**, enter the departing
+  researcher's email in `departing_researcher_email`.
+
+Only the email field corresponding to the selected scope is used. Assignments
+outside the selected target remain fixed. Replacements remain subject to
+researcher-level supervision-language compatibility.
+
+## 3. Run the selected workflow
+
+Select **Runtime → Run all** after choosing and configuring the workflow.
+
+For **Complete allocation**, upload the researcher, topic, and student-preference
+files together when the upload window appears. The notebook allocates thesis
+topics first and then assigns daily supervisors and promotors. It downloads
+`thesis_allocation_results.zip` when the workflow completes.
+
+For **Reassign supervision**, upload the previous final assignments, researcher
+file, and topic file together. The notebook downloads
+`thesis_reassignment_results.zip` when finished.
 
 ## Data handling
 

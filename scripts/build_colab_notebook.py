@@ -12,18 +12,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOK_PATH = ROOT / "notebooks" / "Thesis_Allocation_Colab.ipynb"
 
+
 def _source(text: str) -> list[str]:
     normalized = textwrap.dedent(text).strip("\n") + "\n"
     return normalized.splitlines(keepends=True)
 
+
 def _markdown(text: str) -> dict[str, object]:
     return {"cell_type": "markdown", "metadata": {}, "source": _source(text)}
+
 
 def _code(text: str, *, cell_id: str, form: bool = False) -> dict[str, object]:
     metadata: dict[str, object] = {"id": cell_id}
     if form:
         metadata["cellView"] = "form"
     return {"cell_type": "code", "execution_count": None, "metadata": metadata, "outputs": [], "source": _source(text)}
+
 
 def build_notebook() -> dict[str, object]:
     cells = [
@@ -35,9 +39,13 @@ def build_notebook() -> dict[str, object]:
         This notebook runs the thesis allocation without installing anything on
         your computer.
 
-        Work through the numbered sections below. If you already have the three
-        input files, skip section 1. Then choose the workflow you want to run,
-        review its options, and select **Runtime → Run all**.
+        Work through the numbered sections below:
+
+        1. optionally download blank input files;
+        2. choose and configure one of the two workflows;
+        3. run the selected workflow.
+
+        If you already have the required input files, skip section 1.
 
         **Data notice:** uploaded files are processed in a Google Colab virtual
         machine. This notebook does not mount Google Drive and does not save input
@@ -48,9 +56,19 @@ def build_notebook() -> dict[str, object]:
         ## 1. Optional: download blank input files
 
         Skip this section if your researcher, topic, and student-preference files
-        are already prepared. The student-preference template asks for three exact
-        thesis topic IDs. Topic ID `9999` is reserved for an own topic and requires
-        `own_topic_description`.
+        are already prepared.
+
+        Students must provide three different exact thesis topic IDs. Topic ID
+        `9999` means a student's own topic and can therefore appear at most once.
+        If `9999` is used, `own_topic_description` must describe that own topic.
+        Because an own topic has no shared topic capacity, ranking `9999` first
+        means it will be selected during topic allocation; ranking it second or
+        third makes it an always-available fallback.
+
+        In `researchers.xlsx`, `appointment` is descriptive only. Eligibility for
+        daily-supervisor and promotor roles is controlled by the corresponding
+        maximum-capacity columns: a maximum above `0` means eligible and `0` means
+        ineligible. The minimum columns are workload targets, not role categories.
         '''),
         _code('''
         # @title 1. Download blank input files (optional)
@@ -66,15 +84,15 @@ def build_notebook() -> dict[str, object]:
 
             template_columns = {
                 "researchers.xlsx": [
-                    "full_name", "email", "appointment", "profile_url",
-                    "publications_url", "profile_description", "publication_list",
-                    "daily_supervisor_minimum_theses",
+                    "full_name", "email", "appointment", "supervision_languages",
+                    "profile_url", "publications_url", "profile_description",
+                    "publication_list", "daily_supervisor_minimum_theses",
                     "daily_supervisor_maximum_theses",
                     "promotor_minimum_theses", "promotor_maximum_theses",
                 ],
                 "topics.xlsx": [
                     "topic_id", "topic_title", "topic_description",
-                    "submitter_email", "capacity", "supervision_languages",
+                    "submitter_email", "capacity",
                 ],
                 "student_preferences.xlsx": [
                     "full_name", "email", "preference_1",
@@ -94,18 +112,25 @@ def build_notebook() -> dict[str, object]:
             shutil.make_archive(str(template_zip.with_suffix("")), "zip", template_directory)
             files.download(str(template_zip))
         ''', cell_id='templates', form=True),
+        _markdown('''
+        ## 2. Choose a workflow
+
+        Select one workflow and review only the options for that workflow. The
+        notebook will use the selection below when section 3 runs.
+        '''),
         _code('''
-        # @title Choose which workflow to run
+        # @title 2. Choose workflow
         task = "Complete allocation"  # @param ["Complete allocation", "Reassign supervision"]
         ''', cell_id='workflow', form=True),
         _markdown('''
-        ## 2. Thesis topic, daily supervisor, and promotor allocation
+        ### 2.a Workflow 1: thesis topic and supervision allocation
 
-        Use this workflow for the normal annual allocation. Students must provide
-        their top three preferences as exact topic IDs rather than typed titles.
+        Use **Complete allocation** for the normal annual allocation. It first
+        allocates thesis topics and then assigns daily supervisors and promotors.
+        Students' three topic preferences are matched by exact topic ID only.
         '''),
         _code('''
-        # @title 2. Complete-allocation options
+        # @title 2.a Workflow 1 options
         matching_method = "Semantic matching (recommended)"  # @param ["Semantic matching (recommended)", "Fast lexical matching"]
         retrieve_researcher_profiles = False  # @param {type:"boolean"}
         allow_partial_results = False  # @param {type:"boolean"}
@@ -113,20 +138,30 @@ def build_notebook() -> dict[str, object]:
         duplicate_student_submissions = "Keep last submission"  # @param ["Keep last submission", "Keep first submission", "Stop with an error"]
         ''', cell_id='allocation-options', form=True),
         _markdown('''
-        ## 3. Reassign individual researchers
+        ### 2.b Workflow 2: reassignment
 
-        Use this workflow to replace one student's daily supervisor or promotor,
-        or to replace all assignments held by a departing researcher. Existing
-        assignments outside the selected target remain fixed.
+        Use **Reassign supervision** to replace one student's daily supervisor or
+        promotor, or to replace all assignments held by a departing researcher.
+
+        For **One student**, fill in `student_email`. For **Everyone assigned to a
+        departing supervisor**, fill in `departing_researcher_email`. Only the
+        field matching the selected scope is used.
         '''),
         _code('''
-        # @title 3. Reassignment options
+        # @title 2.b Workflow 2 options
         reassignment_role = "Daily supervisor"  # @param ["Daily supervisor", "Promotor"]
         reassignment_scope = "One student"  # @param ["One student", "Everyone assigned to a departing supervisor"]
-        target_email = ""  # @param {type:"string"}
+        student_email = ""  # @param {type:"string"}
+        departing_researcher_email = ""  # @param {type:"string"}
         ''', cell_id='reassignment-options', form=True),
+        _markdown('''
+        ## 3. Run the selected workflow
+
+        After choosing the workflow and its options above, run the notebook. You
+        will be asked to upload the three files required for the selected workflow.
+        '''),
         _code('''
-        # @title Prepare the allocation program
+        # @title 3.a Prepare the allocation program
         import subprocess
         import sys
 
@@ -143,7 +178,7 @@ def build_notebook() -> dict[str, object]:
         print("The allocation program is ready.")
         ''', cell_id='setup', form=True),
         _code('''
-        # @title Run the selected workflow
+        # @title 3.b Run selected workflow
         import json
         import os
         import shutil
@@ -181,8 +216,9 @@ def build_notebook() -> dict[str, object]:
             topic_columns = aliases_for("topic_id", TOPIC_ALIASES["topic_id"])
             researcher_specific = set()
             for canonical in (
-                "appointment", "profile_url", "publications_url", "profile_description",
-                "publication_list", "daily_supervisor_minimum_theses",
+                "appointment", "supervision_languages", "profile_url",
+                "publications_url", "profile_description", "publication_list",
+                "daily_supervisor_minimum_theses",
                 "daily_supervisor_maximum_theses", "promotor_minimum_theses",
                 "promotor_maximum_theses",
             ):
@@ -260,15 +296,27 @@ def build_notebook() -> dict[str, object]:
                 arguments.append("--skip-scrape")
             result_filename = "thesis_allocation_results.zip"
         else:
-            if not target_email.strip():
-                raise ValueError("Enter the student or departing supervisor email in 'target_email' before running reassignment.")
-            inputs = identify_uploads(uploaded_paths, {"assignments", "researchers", "topics"})
             role = "daily_supervisor" if reassignment_role == "Daily supervisor" else "promotor"
-            target_option = "--student-email" if reassignment_scope == "One student" else "--departing-supervisor-email"
+            if reassignment_scope == "One student":
+                target_option = "--student-email"
+                selected_target_email = student_email.strip()
+                if not selected_target_email:
+                    raise ValueError(
+                        "Enter the student's email in 'student_email' before running reassignment."
+                    )
+            else:
+                target_option = "--departing-supervisor-email"
+                selected_target_email = departing_researcher_email.strip()
+                if not selected_target_email:
+                    raise ValueError(
+                        "Enter the departing researcher's email in "
+                        "'departing_researcher_email' before running reassignment."
+                    )
+            inputs = identify_uploads(uploaded_paths, {"assignments", "researchers", "topics"})
             arguments = [
                 "reassign", "--assignments", str(inputs["assignments"]),
                 "--researchers", str(inputs["researchers"]), "--topics", str(inputs["topics"]),
-                "--role", role, target_option, target_email.strip(),
+                "--role", role, target_option, selected_target_email,
                 "--output", str(output_directory / "final_assignments_reassigned.xlsx"),
                 "--summary-output", str(output_directory / "supervisor_summary_reassigned.xlsx"),
                 "--log-output", str(output_directory / "reassignment_log.csv"), *common_options,
@@ -325,8 +373,10 @@ def build_notebook() -> dict[str, object]:
         "nbformat_minor": 5,
     }
 
+
 def notebook_bytes() -> bytes:
     return (json.dumps(build_notebook(), indent=1, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -343,6 +393,7 @@ def main() -> int:
     NOTEBOOK_PATH.write_bytes(expected)
     print(NOTEBOOK_PATH)
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
