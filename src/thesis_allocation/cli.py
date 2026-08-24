@@ -77,7 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     allocate_parser = subparsers.add_parser(
         "allocate-topics",
-        help="Minimize total ranked-preference cost under topic capacities.",
+        help="Minimize total ranked topic-ID preference cost under capacities.",
     )
     allocate_parser.add_argument("--preferences", required=True)
     allocate_parser.add_argument("--topics", required=True)
@@ -88,8 +88,6 @@ def build_parser() -> argparse.ArgumentParser:
         default="keep-last",
     )
     allocate_parser.add_argument("--allow-partial", action="store_true")
-    allocate_parser.add_argument("--fuzzy-threshold", type=float, default=0.90)
-    allocate_parser.add_argument("--fuzzy-margin", type=float, default=0.05)
 
     match_parser = subparsers.add_parser(
         "match-supervisors",
@@ -119,8 +117,6 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("error", "keep-first", "keep-last"),
         default="keep-last",
     )
-    run_parser.add_argument("--fuzzy-threshold", type=float, default=0.90)
-    run_parser.add_argument("--fuzzy-margin", type=float, default=0.05)
     _add_matching_arguments(run_parser)
 
     reassign_parser = subparsers.add_parser(
@@ -175,8 +171,6 @@ def _command_allocate(args: argparse.Namespace) -> None:
         read_table(args.topics),
         duplicate_policy=args.duplicate_policy,
         allow_partial=args.allow_partial,
-        fuzzy_threshold=args.fuzzy_threshold,
-        fuzzy_margin=args.fuzzy_margin,
     )
     path = write_table(result.assignments, args.output)
     _print_warnings(result.warnings)
@@ -231,8 +225,6 @@ def _command_run(args: argparse.Namespace) -> None:
         topic_table,
         duplicate_policy=args.duplicate_policy,
         allow_partial=args.allow_partial,
-        fuzzy_threshold=args.fuzzy_threshold,
-        fuzzy_margin=args.fuzzy_margin,
     )
     topics_path = write_table(
         allocation.assignments,
@@ -283,7 +275,13 @@ def _command_run(args: argparse.Namespace) -> None:
         encoding="utf-8",
     )
     _print_warnings(warnings)
-    for path in (researchers_path, topics_path, final_path, summary_path, report_path):
+    for path in (
+        researchers_path,
+        topics_path,
+        final_path,
+        summary_path,
+        report_path,
+    ):
         print(path)
 
 
@@ -330,4 +328,3 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
     return 0
-

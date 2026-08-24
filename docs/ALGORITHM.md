@@ -12,33 +12,40 @@ again.
 
 ## 2. Topic allocation
 
-Each student, topic, and capacity is represented in a flow network:
+Each student, offered topic, and capacity is represented in a flow network:
 
 - the source has capacity 1 to each student;
 - a student has one edge to each valid ranked preference;
 - those edges cost 1, 2, or 3 according to rank;
-- each topic has its declared capacity to the sink.
+- each offered topic has its declared capacity to the sink;
+- a student's own-topic preference (`9999`) has a student-specific edge to the sink.
 
-Language-incompatible edges are omitted. A successive shortest augmenting-path
-solver computes maximum flow at minimum total cost. Therefore a complete result
-has the smallest possible sum of preference ranks across all students.
+Language-incompatible offered-topic edges are omitted. A successive shortest
+augmenting-path solver computes maximum flow at minimum total cost. Therefore a
+complete result has the smallest possible sum of preference ranks across all
+students.
 
-Topic references first match by normalized ID or title. Guarded fuzzy matching
-is used only above the configured confidence threshold and only when the best
-match is separated from the runner-up. Ambiguous references stop the run.
+Preferences resolve by exact topic ID only. Topic titles are display fields and
+are never used to identify a preference. There is no fuzzy or approximate title
+matching. Topic ID `9999` is reserved for a student's own topic and requires a
+short `own_topic_description`.
 
 ## 3. Supervisor matching
 
-Researcher text combines the profile description and publication list. Topic
-text combines the official title and description. The production backend
-creates normalized sentence-transformer embeddings and uses cosine similarity.
+Researcher text combines the profile description and publication list. For an
+offered topic, topic text combines the official title and description. For an
+own topic (`9999`), the student's `own_topic_description` is used directly as
+the topic text.
+
+The production backend creates normalized sentence-transformer embeddings and
+uses cosine similarity.
 
 Daily supervisors and promotors are optimized as separate global flow problems.
 Existing assignments are fixed and counted against capacity. The flow network
 then accounts for:
 
 - hard maximum capacities;
-- absolute priority for an eligible topic submitter;
+- absolute priority for an eligible offered-topic submitter;
 - prioritized minimum workload slots;
 - semantic similarity cost;
 - a mild incremental load-balancing cost;
@@ -51,6 +58,9 @@ Submitter priority remains subject to role eligibility, exclusions, the
 distinct-role rule, and the researcher's maximum capacity. If one researcher
 submitted more assigned topics than their available capacity, the secondary
 costs determine which of those topics they supervise.
+
+Own topics have no topic submitter, so they are matched on semantic fit,
+workload constraints, and capacity.
 
 The output records the raw semantic match score and whether an assignment came
 from a carry-over, topic-submitter priority, or general semantic matching.

@@ -16,14 +16,16 @@ validated input contracts, and automated tests.
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/christofkoolen/computational-allocation-of-thesis-supervision/blob/main/notebooks/Thesis_Allocation_Colab.ipynb)
 
 The Colab notebook is intended for colleagues who do not use Python or a
-terminal. It supports the complete allocation and targeted reassignment
-workflows. To use it:
+terminal. Its numbered sections are ordered as follows:
 
-1. Open the notebook with the badge above.
-2. Review the plain-language options.
-3. Select **Runtime → Run all**.
-4. Upload the three requested Excel or CSV files together.
-5. Download the generated results ZIP.
+1. optionally download blank input files; skip this when the files are already prepared;
+2. run thesis topic allocation followed by daily-supervisor and promotor allocation;
+3. reassign an individual student's supervisor/promotor or assignments held by a departing researcher.
+
+Students submit their top three thesis preferences using exact topic IDs. Topic
+ID `9999` is reserved for a student's own topic and requires a short
+`own_topic_description`. Topic titles are not used as preference identifiers and
+there is no fuzzy title matching.
 
 No local installation or GitHub authentication is required. Colab processes
 uploaded files on a Google-hosted virtual machine. Use real student data only
@@ -83,7 +85,7 @@ thesis-allocation scrape-researchers \
   --output output/researchers_enriched.xlsx
 ```
 
-Run the exact topic optimizer:
+Run the exact topic-ID optimizer:
 
 ```bash
 thesis-allocation allocate-topics \
@@ -142,8 +144,11 @@ excluded from every replacement generated in that run.
 
 ## Policy behavior
 
+- Students provide three ranked topic IDs rather than typing topic titles.
+- Topic ID `9999` represents a student-specific own topic and requires `own_topic_description`.
+- Offered-topic IDs are matched exactly; fuzzy title matching is not used.
 - Topic ranks cost exactly 1, 2, and 3.
-- Topic capacities are hard constraints.
+- Offered-topic capacities are hard constraints; own topics are student-specific and do not consume an offered-topic capacity.
 - Language compatibility is enforced while optimizing, rather than checked after allocation.
 - Existing supervisor assignments are treated as fixed carry-overs.
 - A researcher is eligible for a role when that role's maximum capacity is greater than zero.
@@ -151,7 +156,7 @@ excluded from every replacement generated in that run.
 - Semantic similarity is optimized globally with a mild load-balancing cost.
 - An eligible topic submitter has absolute assignment priority up to their maximum capacity.
 - Daily supervisor and promotor must be different people unless `--allow-same-person` is supplied.
-- Invalid, ambiguous, and low-confidence topic references stop the run with suggestions.
+- Unknown topic IDs and invalid own-topic submissions stop the run with actionable validation errors.
 
 See [the input contract](docs/INPUT_FORMAT.md),
 [the algorithm description](docs/ALGORITHM.md), and

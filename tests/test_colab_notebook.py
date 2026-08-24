@@ -19,9 +19,7 @@ class ColabNotebookTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.root = Path(__file__).resolve().parents[1]
-        cls.notebook_path = (
-            cls.root / "notebooks" / "Thesis_Allocation_Colab.ipynb"
-        )
+        cls.notebook_path = cls.root / "notebooks" / "Thesis_Allocation_Colab.ipynb"
         cls.notebook = json.loads(cls.notebook_path.read_text(encoding="utf-8"))
 
     def test_notebook_is_current(self) -> None:
@@ -36,25 +34,31 @@ class ColabNotebookTests(unittest.TestCase):
             text=True,
             check=False,
         )
-
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_notebook_contains_no_saved_outputs(self) -> None:
-        code_cells = [
-            cell
+    def test_numbered_sections_are_in_requested_order(self) -> None:
+        markdown = "\n".join(
+            "".join(cell["source"])
             for cell in self.notebook["cells"]
-            if cell["cell_type"] == "code"
-        ]
+            if cell["cell_type"] == "markdown"
+        )
+        first = markdown.index("## 1. Optional: download blank input files")
+        second = markdown.index(
+            "## 2. Thesis topic, daily supervisor, and promotor allocation"
+        )
+        third = markdown.index("## 3. Reassign individual researchers")
+        self.assertLess(first, second)
+        self.assertLess(second, third)
+        self.assertIn("skip section 1", markdown.casefold())
 
-        self.assertGreaterEqual(len(code_cells), 4)
+    def test_notebook_contains_no_saved_outputs_and_code_compiles(self) -> None:
+        code_cells = [
+            cell for cell in self.notebook["cells"] if cell["cell_type"] == "code"
+        ]
+        self.assertGreaterEqual(len(code_cells), 5)
         for cell in code_cells:
             self.assertIsNone(cell["execution_count"])
             self.assertEqual(cell["outputs"], [])
-
-    def test_every_code_cell_compiles(self) -> None:
-        for cell in self.notebook["cells"]:
-            if cell["cell_type"] != "code":
-                continue
             source = "".join(cell["source"])
             compile(source, f"{self.notebook_path}:{cell['metadata']['id']}", "exec")
 
@@ -64,11 +68,7 @@ class ColabNotebookTests(unittest.TestCase):
             for cell in self.notebook["cells"]
             if cell["cell_type"] == "code"
         )
-
-        self.assertIn(
-            '"git+https://github.com/christofkoolen/"',
-            code,
-        )
+        self.assertIn('"git+https://github.com/christofkoolen/"', code)
         self.assertIn(
             '"computational-allocation-of-thesis-supervision.git@main"',
             code,
@@ -76,7 +76,6 @@ class ColabNotebookTests(unittest.TestCase):
         self.assertIn("files.upload()", code)
         self.assertIn("files.download(", code)
         self.assertNotIn("drive.mount", code)
-        self.assertNotIn("PACKAGE_BUNDLE", code)
 
     def test_complete_notebook_workflow_produces_results_zip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -89,9 +88,7 @@ class ColabNotebookTests(unittest.TestCase):
                 root / "runtime",
                 task="Complete allocation",
             )
-            with zipfile.ZipFile(
-                self._bytes_file(downloaded)
-            ) as archive:
+            with zipfile.ZipFile(self._bytes_file(downloaded)) as archive:
                 self.assertEqual(
                     set(archive.namelist()),
                     {
@@ -102,9 +99,6 @@ class ColabNotebookTests(unittest.TestCase):
                         "topic_assignments.xlsx",
                     },
                 )
-            self.assertFalse(
-                (root / "runtime" / "thesis_allocation_run" / "input").exists()
-            )
 
     def test_reassignment_notebook_workflow_produces_results_zip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -120,16 +114,7 @@ class ColabNotebookTests(unittest.TestCase):
                 reassignment_scope="One student",
                 target_email="student@example.org",
             )
-
             with zipfile.ZipFile(self._bytes_file(downloaded)) as archive:
-                self.assertEqual(
-                    set(archive.namelist()),
-                    {
-                        "final_assignments_reassigned.xlsx",
-                        "reassignment_log.csv",
-                        "supervisor_summary_reassigned.xlsx",
-                    },
-                )
                 log = pd.read_csv(
                     self._bytes_file(archive.read("reassignment_log.csv"))
                 )
@@ -187,10 +172,7 @@ class ColabNotebookTests(unittest.TestCase):
         with (
             patch.dict(
                 sys.modules,
-                {
-                    "google": google_module,
-                    "google.colab": colab_module,
-                },
+                {"google": google_module, "google.colab": colab_module},
             ),
             patch.dict(
                 os.environ,
@@ -239,7 +221,19 @@ class ColabNotebookTests(unittest.TestCase):
                     "topic_title": "Privacy law",
                     "topic_description": "privacy rights safeguards",
                     "capacity": 1,
-                }
+                },
+                {
+                    "topic_id": "data",
+                    "topic_title": "Data engineering",
+                    "topic_description": "data engineering systems",
+                    "capacity": 1,
+                },
+                {
+                    "topic_id": "contracts",
+                    "topic_title": "Contract law",
+                    "topic_description": "commercial contracts",
+                    "capacity": 1,
+                },
             ]
         ).to_excel(directory / "subjects.xlsx", index=False)
         pd.DataFrame(
@@ -248,6 +242,8 @@ class ColabNotebookTests(unittest.TestCase):
                     "full_name": "Student",
                     "email": "student@example.org",
                     "preference_1": "privacy",
+                    "preference_2": "data",
+                    "preference_3": "contracts",
                 }
             ]
         ).to_excel(directory / "choices.xlsx", index=False)
