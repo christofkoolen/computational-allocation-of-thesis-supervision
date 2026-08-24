@@ -24,6 +24,12 @@ The researcher template contains `supervision_languages`, which records the
 languages in which each researcher can supervise. The topic template has no
 language column because topics themselves do not determine language eligibility.
 
+In `researchers.xlsx`, `appointment` is only a descriptive label. Daily-supervisor
+and promotor eligibility is controlled by the corresponding maximum-capacity
+columns: a maximum above `0` makes the researcher eligible for that role, while
+`0` makes them ineligible. The minimum columns are workload targets rather than
+role categories.
+
 ## 2. Thesis topic and supervisor allocation
 
 Choose **Complete allocation** as the workflow, review the complete-allocation
