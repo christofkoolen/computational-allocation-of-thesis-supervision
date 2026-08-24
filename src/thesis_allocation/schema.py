@@ -16,6 +16,11 @@ RESEARCHER_ALIASES = {
     "full_name": ("name", "researcher_name"),
     "email": ("e-mail", "e-mail address", "researcher_email"),
     "appointment": ("role", "position"),
+    "supervision_languages": (
+        "languages",
+        "allowed_languages",
+        "supervision_language",
+    ),
     "profile_url": ("profile", "staff_profile_url"),
     "publications_url": ("publication_url", "lirias_url"),
     "profile_description": ("profile_text", "description"),
@@ -47,11 +52,6 @@ TOPIC_ALIASES = {
         "proposer_email",
     ),
     "capacity": ("topic_capacity", "places"),
-    "supervision_languages": (
-        "languages",
-        "allowed_languages",
-        "supervision_language",
-    ),
 }
 
 PREFERENCE_ALIASES = {
@@ -234,6 +234,7 @@ def normalize_researchers(
     result["email"] = result["email"].map(normalize_email)
     result["appointment"] = result["appointment"].map(clean_text)
     for column in (
+        "supervision_languages",
         "profile_url",
         "publications_url",
         "profile_description",
@@ -285,7 +286,6 @@ def normalize_topics(frame: pd.DataFrame) -> pd.DataFrame:
     result["topic_title"] = result["topic_title"].map(clean_text)
     result["topic_description"] = result["topic_description"].map(clean_text)
     result["submitter_email"] = result["submitter_email"].map(normalize_email)
-    result["supervision_languages"] = result["supervision_languages"].map(clean_text)
     issues.extend(_require_nonempty(result, ("topic_id", "topic_title")))
     issues.extend(_validate_unique(result, "topic_id", "Topic IDs"))
     issues.extend(_validate_unique(result, "topic_title", "Topic titles"))
@@ -360,7 +360,7 @@ def normalize_preferences(
         )
     )
 
-    for index, row in result.iterrows():
+    for _, row in result.iterrows():
         preferences = [row[f"preference_{rank}"] for rank in (1, 2, 3)]
         if len(set(preferences)) != len(preferences):
             issues.append(
