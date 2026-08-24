@@ -34,7 +34,7 @@ One row represents one available thesis topic.
 | `topic_id` | Recommended | Stable unique ID; generated from the title when the entire column is blank |
 | `topic_title` | Yes | Unique official topic title |
 | `topic_description` | No | Text included in semantic matching |
-| `submitter_email` | No | Researcher who proposed the topic |
+| `submitter_email` | No | Researcher who proposed the topic; receives absolute supervision priority when eligible and within maximum capacity |
 | `capacity` | No | Number of students who may receive the topic; defaults to 1 |
 | `supervision_languages` | No | Comma or semicolon separated languages allowed for the topic |
 
@@ -77,4 +77,3 @@ The matching and reassignment commands accept the output of
 
 Email is the canonical identifier. A name-only carry-over is accepted when it
 matches exactly one researcher. Conflicting names and emails are rejected.
-

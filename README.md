@@ -149,7 +149,7 @@ excluded from every replacement generated in that run.
 - A researcher is eligible for a role when that role's maximum capacity is greater than zero.
 - Minimum supervision targets are prioritized before optional capacity.
 - Semantic similarity is optimized globally with a mild load-balancing cost.
-- A topic submitter receives a configurable preference when eligible.
+- An eligible topic submitter has absolute assignment priority up to their maximum capacity.
 - Daily supervisor and promotor must be different people unless `--allow-same-person` is supplied.
 - Invalid, ambiguous, and low-confidence topic references stop the run with suggestions.
 
