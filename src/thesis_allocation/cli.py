@@ -283,7 +283,7 @@ def _command_run(args: argparse.Namespace) -> None:
         output_directory / "final_assignments.xlsx",
     )
     shareable_path = write_table(
-        restored_assignments.loc[:, SHAREABLE_ASSIGNMENT_COLUMNS].copy(),
+        restored_assignments.loc[:, list(SHAREABLE_ASSIGNMENT_COLUMNS)].copy(),
         output_directory / "final_assignments_shareable.xlsx",
     )
     summary_path = write_table(
