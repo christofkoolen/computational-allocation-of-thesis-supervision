@@ -84,11 +84,10 @@ def build_notebook() -> dict[str, object]:
 
             template_columns = {
                 "researchers.xlsx": [
-                    "full_name", "email", "appointment", "supervision_languages",
-                    "profile_url", "publications_url", "profile_description",
+                    "full_name", "email", "appointment_type", "appointment_percentage",
+                    "supervision_languages", "profile_url", "publications_url", "profile_description",
                     "publication_list", "daily_supervisor_minimum_theses",
-                    "daily_supervisor_maximum_theses",
-                    "promotor_minimum_theses", "promotor_maximum_theses",
+                    "daily_supervisor_maximum_theses", "promotor_minimum_theses", "promotor_maximum_theses",
                 ],
                 "topics.xlsx": [
                     "topic_id", "topic_title", "topic_description",
