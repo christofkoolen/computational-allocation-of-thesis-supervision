@@ -362,10 +362,6 @@ def normalize_preferences(
 
     for _, row in result.iterrows():
         preferences = [row[f"preference_{rank}"] for rank in (1, 2, 3)]
-        if len(set(preferences)) != len(preferences):
-            issues.append(
-                f"student '{row['email']}' must provide three different topic IDs"
-            )
         if OWN_TOPIC_ID in preferences and not row["own_topic_description"]:
             issues.append(
                 f"student '{row['email']}' selected topic ID {OWN_TOPIC_ID} "
