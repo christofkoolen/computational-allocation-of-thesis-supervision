@@ -50,33 +50,61 @@ language field because language eligibility belongs to researchers.
 | --- | --- | --- |
 | `topic_id` | Yes | Stable unique ID used by students when submitting preferences |
 | `topic_title` | Yes | Unique official topic title |
-| `topic_description` | No | Text included in semantic matching |
+| `topic_description` | No | Text included in semantic matching and copied into `assigned_topic_description` when allocated |
 | `submitter_email` | No | Researcher who proposed the topic; receives absolute supervision priority when eligible and within maximum capacity |
 | `capacity` | No | Number of students who may receive the topic; defaults to 1 when the column is omitted |
 
-Topic ID `9999` is reserved for a student's own topic and must not appear in
-the topics file. Topic IDs are never generated from titles.
+Topic IDs `9998` and `9999` are reserved and must not appear in the topics file.
+`9998` means previous-year carry-over and `9999` means a student's own topic.
+Topic IDs are never generated from titles.
 
 The aliases `proposed_thesis_topic`, `subject_field`, and
 `researcher_email` remain supported for the descriptive topic fields.
 
 ## Student preferences
 
-One row represents one student's ranked submission. Students must provide all
-three preference fields as topic IDs. Topic titles are not accepted as identifiers
-and no fuzzy or approximate title matching is performed.
+One row represents one student's submission. For the normal current-year topic
+allocation, students provide three ranked topic IDs. Topic titles are not
+accepted as identifiers and no fuzzy or approximate title matching is performed.
 
 | Column | Required | Meaning |
 | --- | --- | --- |
 | `full_name` | Yes | Student display name |
 | `email` | Yes | Unique student identifier |
-| `preference_1` | Yes | First-choice topic ID |
+| `preference_1` | Yes | First-choice topic ID, or `9998` for previous-year carry-over |
 | `preference_1_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when this occurrence is assigned |
-| `preference_2` | Yes | Second-choice topic ID |
+| `preference_2` | Yes normally; may be blank for `9998` | Second-choice topic ID |
 | `preference_2_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when this occurrence is assigned |
-| `preference_3` | Yes | Third-choice topic ID |
+| `preference_3` | Yes normally; may be blank for `9998` | Third-choice topic ID |
 | `preference_3_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when this occurrence is assigned |
 | `own_topic_description` | Conditional | Short description required when any preference is topic ID `9999` |
+
+### Previous-year carry-over: topic ID `9998`
+
+A continuing student who wants to retain the previous thesis allocation enters:
+
+```text
+preference_1 = 9998
+```
+
+`9998` is allowed only in `preference_1`. For that student, `preference_2` and
+`preference_3` may be blank. The complete allocation must also receive the
+previous `final_assignments` file, normally named
+`previous_final_assignments.xlsx`.
+
+The student is matched to the previous assignment by normalized student email.
+The previous final-assignment row supplies the carried topic, topic description,
+assigned language, daily supervisor, and promotor. For a `9998` student, the
+current `topics.xlsx` is not used to resolve that student's topic, even if the
+old topic ID happens to be reused in the current academic year.
+
+A repeat student who wants a new topic simply submits three ordinary topic IDs.
+Their presence in `previous_final_assignments` does not trigger carry-over by
+itself.
+
+See `docs/CARRY_OVER.md` for the complete carry-over policy.
+
+### Normal ranked preferences
 
 The three topic IDs do not have to be different. Repeated topic IDs are accepted
 and do not cause input validation to fail. For example, `A, A, B` is valid. If
@@ -114,8 +142,9 @@ can be made, unless partial results are explicitly allowed.
 
 When a student chooses `9999`, that choice is treated as that student's own,
 unique thesis topic. It is not constrained by an offered-topic capacity. The
-`own_topic_description` is carried into the assignment output and is used as the
-topic text for semantic supervisor and promotor matching when `9999` is allocated.
+`own_topic_description` is carried into `assigned_topic_description` and is used
+as the topic text for semantic supervisor and promotor matching when `9999` is
+allocated.
 
 Repeated `9999` preferences are accepted. If `9999` appears more than once, the
 earliest occurrence has the lowest rank cost. Because an own topic has no shared
@@ -127,15 +156,16 @@ By default, the final row is retained when a form export contains duplicate
 student emails. Use `--duplicate-policy error` or
 `--duplicate-policy keep-first` to select a different policy.
 
-## Existing assignments
+## Existing and final assignments
 
-The matching and reassignment commands accept the output of
-`allocate-topics`. Carry-over values may already be present in:
+The matching and reassignment commands accept assignment tables with these topic
+and supervision fields:
 
 | Column | Meaning |
 | --- | --- |
 | `assigned_topic_id` | Exact topic ID; `9999` identifies an own topic |
 | `assigned_topic` | Display title generated by the allocation workflow |
+| `assigned_topic_description` | Description of the allocated topic; retained so future carry-over/reassignment can use the previous final file as its topic source |
 | `assigned_language` | Selected supervision language; when populated, assigned researchers must support it |
 | `own_topic_description` | Required when `assigned_topic_id` is `9999` |
 | `daily_supervisor` | Existing daily-supervisor name |
@@ -143,8 +173,12 @@ The matching and reassignment commands accept the output of
 | `promotor` | Existing promotor name |
 | `promotor_email` | Existing promotor email |
 
-Email is the canonical researcher identifier. A name-only supervision
-carry-over is accepted when it matches exactly one researcher. Conflicting
-names and emails are rejected. A fixed carry-over that does not support the
-selected `assigned_language` is rejected. Topic titles are not used to recover
-a missing or mistyped topic ID.
+Email is the canonical researcher identifier. A name-only supervision carry-over
+is accepted when it matches exactly one researcher. Conflicting names and emails
+are rejected.
+
+For general fixed preassignments supplied directly to supervisor matching, an
+incompatible fixed researcher is rejected. In the annual `9998` workflow, a
+previous researcher who is absent, currently ineligible, language-incompatible,
+or beyond the current maximum capacity is instead cleared for that student and
+the open role is reassigned while the previous topic remains fixed.
