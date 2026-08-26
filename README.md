@@ -22,13 +22,15 @@ The Colab notebook runs in the browser and does not require a local Python insta
 
 For a normal annual allocation:
 
-1. prepare the three current-year input files described below;
-2. if any continuing student uses topic ID `9998`, also prepare the previous `final_assignments.xlsx` file;
+1. prepare `researchers.xlsx`, `topics.xlsx`, and `student_preferences.xlsx`;
+2. if continuing students use topic ID `9998`, optionally prepare the previous `final_assignments.xlsx` file as `previous_final_assignments.xlsx`;
 3. open the Colab notebook;
 4. choose **Complete allocation**;
 5. select the desired options;
-6. run the notebook and upload the required files together;
+6. upload the three required files and, when available, the optional previous-final-assignment file;
 7. download the resulting ZIP file.
+
+The previous-final-assignment file is recommended for `9998` students because it allows the program to carry their previous topic, language, daily supervisor, and promotor forward automatically. If it is not supplied, the complete allocation still runs: unresolved `9998` students remain in the outputs and are marked `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED`, with automatic topic and supervisor matching skipped for those students.
 
 The notebook can also reassign one student's supervisor or all assignments held by a departing researcher.
 
@@ -44,15 +46,19 @@ Topic allocation and supervision allocation are separate stages. A student first
 
 ## Input files
 
-The project accepts `.xlsx`, `.csv`, and `.tsv` files. The standard workflow uses:
+The project accepts `.xlsx`, `.csv`, and `.tsv` files.
+
+Required for Complete allocation:
 
 - `researchers.xlsx`
 - `topics.xlsx`
 - `student_preferences.xlsx`
 
-When one or more students use topic ID `9998`, Complete allocation also uses the previous final assignment file, normally named:
+Optional fourth file:
 
 - `previous_final_assignments.xlsx`
+
+The optional fourth file is recommended when one or more students use topic ID `9998`. When it is supplied, the program uses it as the authoritative source for those students' previous topic and supervision information. When it is omitted, the run continues and unresolved `9998` students are marked for manual review rather than causing the whole allocation to fail.
 
 Canonical column names are recommended. Selected legacy aliases are still accepted.
 
@@ -224,7 +230,9 @@ preference_1 = 9998
 
 For that student, preferences 2 and 3 may be blank. `9998` is allowed only as preference 1.
 
-Complete allocation then matches the student by normalized email to `previous_final_assignments.xlsx` and carries forward:
+### When `previous_final_assignments.xlsx` is available
+
+Complete allocation matches the student by normalized email to `previous_final_assignments.xlsx` and carries forward:
 
 - `assigned_topic_id`
 - `assigned_topic`
@@ -238,6 +246,22 @@ The previous final-assignment row is authoritative for the `9998` student's topi
 Valid previous supervisors remain fixed only up to their current role maximums. If three carry-over students point to a researcher whose current maximum is two, the first two carry-over roles are retained and the third role is cleared and reassigned through normal matching. The topic and language remain carried over.
 
 If a previous supervisor has left, is currently ineligible, or is incompatible with the carried language, only that role is cleared and reassigned.
+
+If a previous-final-assignment file is supplied but a `9998` student's normalized email is not present in it, the program stops with a validation error. In that situation the supplied continuity data and the current student submission are inconsistent and should be reviewed.
+
+### When `previous_final_assignments.xlsx` is not available
+
+The complete allocation does **not** stop. The `9998` student remains in `topic_assignments.xlsx`, `final_assignments.xlsx`, and the shareable output, but automatic topic and supervisor inference is deliberately skipped for that student.
+
+The unresolved row is marked clearly for manual follow-up. Human-readable assignment fields use:
+
+```text
+CARRY-OVER STUDENT - MANUAL REVIEW NEEDED
+```
+
+The supervisor/promotor email fields remain blank so the program does not invent researcher identifiers. `topic_assignment_source` is `carry_over_manual_review`, the supervision assignment-source fields are `manual_review`, and `run_report.json` reports the number of unresolved rows in `manual_review_students`.
+
+All other students continue through the normal annual allocation.
 
 A repeat student who wants a new topic simply submits three ordinary topic IDs. Being present in the previous assignment file does not trigger carry-over by itself.
 
@@ -320,13 +344,13 @@ For own topics:
 topic text = own_topic_description
 ```
 
-For `9998` carry-over topics:
+For `9998` carry-over topics with a resolved previous final assignment:
 
 ```text
 topic text = previous assigned_topic + previous assigned_topic_description
 ```
 
-Older previous-final-assignment files without `assigned_topic_description` fall back to the previous `assigned_topic` title.
+Older previous-final-assignment files without `assigned_topic_description` fall back to the previous `assigned_topic` title. Unresolved `9998` manual-review rows are excluded from automatic supervisor matching.
 
 For researchers:
 
@@ -360,7 +384,7 @@ Email is the canonical researcher identifier. A name-only fixed assignment is ac
 
 For general fixed preassignments passed directly to supervisor matching, conflicting names/emails, unknown researcher emails, and language-incompatible fixed supervisors are rejected.
 
-The annual `9998` workflow is more recovery-oriented: a previous supervisor who is absent, currently ineligible, language-incompatible, or beyond the current role maximum is cleared for the affected carry-over student and that open role is reassigned. Valid carry-over assignments count against current maximum capacity.
+The annual `9998` workflow is more recovery-oriented: a previous supervisor who is absent, currently ineligible, language-incompatible, or beyond the current role maximum is cleared for the affected carry-over student and that open role is reassigned. Valid carry-over assignments count against current maximum capacity. If no previous-final-assignment file is supplied at all, the unresolved `9998` row is instead retained for manual review and excluded from automatic supervisor matching.
 
 ## Reassignment
 
@@ -423,7 +447,7 @@ A complete allocation produces:
 | `final_assignments.xlsx` | Full allocation with topic ID/title/description, daily supervisor, promotor, semantic scores, assignment sources, and carried-forward student fields |
 | `final_assignments_shareable.xlsx` | Reduced publication copy with student identity, assigned topic and language, and supervisor/promotor names and emails |
 | `supervisor_summary.xlsx` | Researcher minimums, maximums, actual workload, language information, and capacity flags |
-| `run_report.json` | Machine-readable totals, warnings, and output paths |
+| `run_report.json` | Machine-readable totals, manual-review count, warnings, and output paths |
 
 ### Fields in `final_assignments.xlsx`
 
@@ -440,23 +464,25 @@ The full final-assignment workbook is the authoritative allocation record and is
 | `preference_3` | Student's third-choice topic ID; may be blank for a `9998` submission |
 | `preference_3_languages` | Language or languages submitted for preference 3 |
 | `own_topic_description` | Student's own-topic description when `9999` is used; otherwise normally blank |
-| `assigned_topic_id` | Topic ID actually allocated or carried forward to the student |
-| `assigned_topic` | Title of the allocated topic, `Own topic` for `9999`, or the previous title for `9998` |
-| `assigned_topic_description` | Description of the allocated topic; copied from the current topic, the `9999` own-topic description, or the previous final assignment for `9998` |
-| `assigned_rank` | Rank of the selected current-year preference: 1, 2, or 3; blank for `9998` carry-over students |
-| `assigned_cost` | Topic-allocation cost; currently identical to `assigned_rank`; blank for `9998` carry-over students |
-| `assigned_language` | Supervision language carried from the selected current-year preference or from the previous final assignment for `9998` |
-| `topic_assignment_source` | How the topic entered the current result: normally `ranked_preference` or `carry_over` |
-| `daily_supervisor` | Name of the assigned daily supervisor |
-| `daily_supervisor_email` | Email of the assigned daily supervisor; canonical researcher identifier |
-| `daily_supervisor_match_score` | Semantic similarity between the assigned topic text and the daily supervisor's profile/publication text; normally blank when the role was preserved as carry-over |
-| `daily_supervisor_assignment_source` | Why the daily supervisor was assigned, such as `carry_over`, `topic_submitter`, `semantic`, or `preassigned` in a direct supervisor-matching workflow |
-| `promotor` | Name of the assigned promotor |
-| `promotor_email` | Email of the assigned promotor; canonical researcher identifier |
-| `promotor_match_score` | Semantic similarity between the assigned topic text and the promotor's profile/publication text; normally blank when the role was preserved as carry-over |
-| `promotor_assignment_source` | Why the promotor was assigned, such as `carry_over`, `topic_submitter`, `semantic`, or `preassigned` in a direct supervisor-matching workflow |
+| `assigned_topic_id` | Topic ID actually allocated or carried forward; unresolved manual-review carry-over rows retain `9998` |
+| `assigned_topic` | Title of the allocated topic, `Own topic` for `9999`, the previous title for resolved `9998`, or the manual-review marker for unresolved `9998` |
+| `assigned_topic_description` | Description of the allocated topic; copied from the current topic, the `9999` own-topic description, the previous final assignment for resolved `9998`, or the manual-review marker when no previous file is supplied |
+| `assigned_rank` | Rank of the selected current-year preference: 1, 2, or 3; blank for `9998` students |
+| `assigned_cost` | Topic-allocation cost; currently identical to `assigned_rank`; blank for `9998` students |
+| `assigned_language` | Supervision language carried from the selected current-year preference, from the previous final assignment for resolved `9998`, or the manual-review marker for unresolved `9998` |
+| `topic_assignment_source` | How the topic entered the current result: normally `ranked_preference`, `carry_over`, or `carry_over_manual_review` |
+| `daily_supervisor` | Name of the assigned daily supervisor, or the manual-review marker for an unresolved `9998` row |
+| `daily_supervisor_email` | Email of the assigned daily supervisor; canonical researcher identifier; blank for unresolved manual-review rows |
+| `daily_supervisor_match_score` | Semantic similarity between the assigned topic text and the daily supervisor's profile/publication text; normally blank when the role was preserved as carry-over or requires manual review |
+| `daily_supervisor_assignment_source` | Why the daily supervisor was assigned, such as `carry_over`, `topic_submitter`, `semantic`, `preassigned`, or `manual_review` |
+| `promotor` | Name of the assigned promotor, or the manual-review marker for an unresolved `9998` row |
+| `promotor_email` | Email of the assigned promotor; canonical researcher identifier; blank for unresolved manual-review rows |
+| `promotor_match_score` | Semantic similarity between the assigned topic text and the promotor's profile/publication text; normally blank when the role was preserved as carry-over or requires manual review |
+| `promotor_assignment_source` | Why the promotor was assigned, such as `carry_over`, `topic_submitter`, `semantic`, `preassigned`, or `manual_review` |
 
-For `9998` students, the previous `final_assignments.xlsx` row is the authoritative source for `assigned_topic_id`, `assigned_topic`, `assigned_topic_description`, and `assigned_language`. The current `topics.xlsx` is not consulted for that student's carried topic. The previous daily supervisor and promotor are retained when they remain valid and fit within the current maximum capacity; otherwise only the affected role is reopened for matching.
+For a resolved `9998` student, the previous `final_assignments.xlsx` row is the authoritative source for `assigned_topic_id`, `assigned_topic`, `assigned_topic_description`, and `assigned_language`. The current `topics.xlsx` is not consulted for that student's carried topic. The previous daily supervisor and promotor are retained when they remain valid and fit within the current maximum capacity; otherwise only the affected role is reopened for matching.
+
+For an unresolved `9998` student where no previous-final-assignment file was supplied, the row is retained with `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED` in the human-readable assignment fields. Automatic supervision matching is skipped and the researcher email fields remain blank.
 
 Older previous-final-assignment files without `assigned_topic_description` remain accepted. In that case, the previous `assigned_topic` title is used as the semantic matching fallback. New final-assignment files include the description so subsequent carry-over runs are self-contained.
 
@@ -475,7 +501,7 @@ promotor_email
 
 It is a reduced-column sharing copy, not an anonymized dataset. It still contains student and researcher email addresses, so publication should follow the institution's applicable privacy rules.
 
-Assignment sources make the full result easier to audit. A supervision assignment can come from an existing carry-over, topic-submitter priority, or general semantic matching.
+Assignment sources make the full result easier to audit. A supervision assignment can come from an existing carry-over, topic-submitter priority, general semantic matching, or a manual-review fallback.
 
 The pipeline stops with an actionable error when the input is invalid or a complete assignment is impossible. Partial results can be explicitly enabled when appropriate.
 
@@ -485,7 +511,7 @@ The Colab notebook is intended for colleagues who do not normally use Python or 
 
 ### Complete allocation
 
-Choose **Complete allocation** and upload researcher data, topic data, and student preferences. If any student uses `9998`, also upload the previous final assignments in the same upload window. The notebook separates carry-over students first, allocates current-year topics for everyone else, fills open daily-supervisor and promotor roles, and downloads `thesis_allocation_results.zip`. The ZIP includes both the full `final_assignments.xlsx` and the reduced `final_assignments_shareable.xlsx`.
+Choose **Complete allocation** and upload researcher data, topic data, and student preferences. If any student uses `9998`, the previous final assignments are an **optional fourth upload** in the same upload window. When supplied, they are used to resolve and carry the previous thesis allocation forward. When omitted, the notebook still completes the run and marks unresolved `9998` students `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED` for manual follow-up. The notebook separates carry-over students first, allocates current-year topics for everyone else, fills open daily-supervisor and promotor roles for resolvable students, and downloads `thesis_allocation_results.zip`. The ZIP includes both the full `final_assignments.xlsx` and the reduced `final_assignments_shareable.xlsx`.
 
 ### Reassignment
 
@@ -536,11 +562,13 @@ python -m thesis_allocation run \
   --output-directory output
 ```
 
-When `9998` is used, add:
+When `9998` is used and a previous final-assignment file is available, add:
 
 ```text
 --previous-final-assignments input/previous_final_assignments.xlsx
 ```
+
+This option is not mandatory. If it is omitted, unresolved `9998` students are retained as manual-review rows and the rest of the run proceeds normally.
 
 The first semantic run downloads the default `BAAI/bge-base-en-v1.5` model.
 
@@ -573,7 +601,7 @@ python -m thesis_allocation allocate-topics \
   --output output/topic_assignments.xlsx
 ```
 
-The standalone `allocate-topics` stage does not process `9998`; previous-year carry-over belongs to the complete annual `run` workflow because it also requires the previous final assignments and current researcher data.
+The standalone `allocate-topics` stage does not process `9998`; previous-year carry-over belongs to the complete annual `run` workflow because it requires current researcher data and can optionally use the previous final assignments.
 
 ### Match supervisors only
 
@@ -590,7 +618,10 @@ python -m thesis_allocation match-supervisors \
 
 - Ordinary current-year students provide three ranked topic-ID fields.
 - Topic ID `9998` is reserved for previous-year carry-over and is used only as preference 1.
-- A `9998` student's topic information comes from the previous final assignment, not the current topics file.
+- `previous_final_assignments.xlsx` is an optional but recommended fourth input when `9998` students are present.
+- With the previous file, a `9998` student's topic information comes from that previous final assignment, not the current topics file.
+- Without the previous file, the run continues and unresolved `9998` rows are marked `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED`; automatic supervisor matching is skipped for those rows.
+- If a previous file is supplied but a `9998` student's email is missing from it, the program raises a validation error.
 - Valid carry-over supervision is preserved only up to current maximum capacities; excess roles are reassigned.
 - Topic ID `9999` is reserved for a student's own topic.
 - Repeated ordinary topic IDs are accepted and do not cause input validation to fail.
