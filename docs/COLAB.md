@@ -25,9 +25,14 @@ extra topic capacity or an additional fallback option.
 
 Topic ID `9998` is reserved for previous-year carry-over. A continuing student
 who wants to retain the previous thesis allocation enters `9998` as
-`preference_1`; preferences 2 and 3 may then be blank. When at least one student
-uses `9998`, the Complete allocation upload must also include the previous
-`final_assignments` file, normally named `previous_final_assignments.xlsx`.
+`preference_1`; preferences 2 and 3 may then be blank. When the previous
+`final_assignments` file is available, upload it as an optional fourth file,
+normally named `previous_final_assignments.xlsx`.
+
+If no previous final-assignment file is available, the Complete allocation run
+still completes. The unresolved `9998` student stays in the outputs and is marked
+`CARRY-OVER STUDENT - MANUAL REVIEW NEEDED`; automatic topic inference and
+supervisor/promotor matching are skipped for that row.
 
 Topic ID `9999` is reserved for an own topic. When a student selects it,
 `own_topic_description` must contain a short description of that own topic.
@@ -65,11 +70,27 @@ preference because it has the lowest rank cost. If `A` cannot be assigned becaus
 its topic capacity is exhausted, the repeated `A` does not provide another
 alternative and `B` remains a third-choice fallback.
 
-For a `9998` student, the notebook first matches the student by email to the
-previous final-assignment file and carries forward the previous topic, topic
-description, assigned language, daily supervisor, and promotor. That student's
-topic is not resolved against the current `topics.xlsx`, even if the old topic ID
-has been reused for a different current-year topic.
+For a `9998` student with a matching previous final-assignment row, the notebook
+carries forward the previous topic, topic description, assigned language, daily
+supervisor, and promotor. That student's topic is not resolved against the
+current `topics.xlsx`, even if the old topic ID has been reused for a different
+current-year topic.
+
+If no previous final-assignment file is uploaded, the `9998` row is retained for
+manual review instead. The visible unresolved assignment fields are marked:
+
+```text
+CARRY-OVER STUDENT - MANUAL REVIEW NEEDED
+```
+
+Researcher email fields remain blank rather than containing placeholder email
+values. The student is excluded from automatic supervisor/promotor matching, so
+the program does not guess a new assignment from incomplete carry-over data.
+Other students continue normally.
+
+If a previous final-assignment file is uploaded but does not contain the email of
+a `9998` student, the run still stops with a validation error because the supplied
+continuity file is inconsistent for that student.
 
 Previous supervision is kept only while the researcher is still listed and
 eligible, supports the carried language, and remains within the current maximum
@@ -107,11 +128,11 @@ Only the email field corresponding to the selected scope is used. Assignments
 outside the selected target remain fixed. Replacements remain subject to the
 same hard researcher-level supervision-language compatibility rule.
 
-For carried `9998` assignments, reassignment uses the topic information stored in
-the final-assignment row. New runs include `assigned_topic_description`, so the
-previous final file contains the semantic topic text needed for later replacement
-matching. Older files without that field fall back to the stored `assigned_topic`
-title.
+For resolved carried `9998` assignments, reassignment uses the topic information
+stored in the final-assignment row. New runs include `assigned_topic_description`,
+so the previous final file contains the semantic topic text needed for later
+replacement matching. Older files without that field fall back to the stored
+`assigned_topic` title.
 
 ## 3. Run the selected workflow
 
@@ -119,11 +140,16 @@ Select **Runtime → Run all** after choosing and configuring the workflow.
 
 For **Complete allocation**, upload the researcher, topic, and student-preference
 files together when the upload window appears. If one or more students use
-`9998`, upload `previous_final_assignments.xlsx` in the same upload window as an
-optional fourth file. The notebook separates carry-over students first, allocates
-current-year topics for everyone else, then assigns any open daily-supervisor and
-promotor roles. It downloads `thesis_allocation_results.zip` when the workflow
+`9998` and the previous final assignments are available, upload that file in the
+same window as an optional fourth file. The notebook separates carry-over
+students first, allocates current-year topics for everyone else, then assigns any
+open daily-supervisor and promotor roles. If the previous file is missing,
+unresolved `9998` rows are retained for manual review instead of stopping the
+run. The notebook downloads `thesis_allocation_results.zip` when the workflow
 completes.
+
+`run_report.json` includes `manual_review_students` in addition to the carry-over
+count, and the notebook prints the corresponding warning messages.
 
 For **Reassign supervision**, upload the previous final assignments, researcher
 file, and topic file together. The notebook downloads

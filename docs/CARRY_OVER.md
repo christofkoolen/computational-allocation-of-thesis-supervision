@@ -30,8 +30,8 @@ A normal complete allocation uses:
 - `topics.xlsx`
 - `student_preferences.xlsx`
 
-When at least one student uses `9998`, also provide the previous complete
-assignment file. The recommended filename is:
+When at least one student uses `9998`, the preferred input is also the previous
+complete assignment file. The recommended filename is:
 
 ```text
 previous_final_assignments.xlsx
@@ -41,10 +41,43 @@ The Colab notebook identifies the file by its assignment columns, so the exact
 filename is recommended rather than mandatory.
 
 The previous assignment is matched to the current student by normalized student
-email. If a student selects `9998` but their email is absent from the previous
-assignment file, the run stops with a validation error.
+email. When the previous file is supplied but a `9998` student's email is absent
+from it, the run stops with a validation error because the supplied continuity
+file is internally incomplete for that student.
 
-## What is carried forward
+### If no previous final-assignment file is available
+
+The complete run no longer stops merely because a `9998` student exists without
+`previous_final_assignments`.
+
+Instead, the student remains in the generated outputs and is clearly marked for
+manual follow-up. Human-readable unresolved assignment fields contain:
+
+```text
+CARRY-OVER STUDENT - MANUAL REVIEW NEEDED
+```
+
+The output keeps the student's submitted name and email, and `assigned_topic_id`
+is shown as `9998`. Researcher identifier fields such as
+`daily_supervisor_email` and `promotor_email` remain blank rather than inventing
+invalid email values.
+
+Automatic topic inference and automatic daily-supervisor/promotor matching are
+skipped for that unresolved carry-over row. Other students continue through the
+normal allocation workflow.
+
+The corresponding assignment-source values identify the row explicitly:
+
+```text
+topic_assignment_source = carry_over_manual_review
+daily_supervisor_assignment_source = manual_review
+promotor_assignment_source = manual_review
+```
+
+`run_report.json` also contains `manual_review_students` and emits a warning with
+the affected student email addresses.
+
+## What is carried forward when the previous file is available
 
 For a valid `9998` student, the previous record supplies:
 
@@ -68,9 +101,9 @@ Older previous-final-assignment files that do not yet contain
 
 The carry-over student is separated before the current-year topic optimizer is
 run. Their previous final-assignment row is authoritative for the thesis topic.
-For a `9998` student, the supervisor-matching stage does not resolve that
-student's `assigned_topic_id` against the current `topics.xlsx` file. This is
-true even if the same topic ID has been reused for a different current-year
+For a resolved `9998` student, the supervisor-matching stage does not resolve
+that student's `assigned_topic_id` against the current `topics.xlsx` file. This
+is true even if the same topic ID has been reused for a different current-year
 topic.
 
 The carried topic therefore does not consume capacity from this year's offered
@@ -146,27 +179,33 @@ The reserved IDs have different meanings:
 | `9999` | Student-specific new own topic |
 | other ID | Current-year offered topic preference |
 
-A `9998` student uses the previous final assignment as the authoritative topic
-record. A `9999` student creates a new own topic and must provide
-`own_topic_description`.
+A resolved `9998` student uses the previous final assignment as the authoritative
+topic record. If that file is not available, the row is retained for manual
+review rather than being automatically inferred. A `9999` student creates a new
+own topic and must provide `own_topic_description`.
 
 ## Google Colab flow
 
 In **Complete allocation**:
 
 1. upload `researchers`, `topics`, and `student_preferences`;
-2. if any student uses `9998`, upload `previous_final_assignments` in the same
-   upload window;
+2. if available, also upload `previous_final_assignments` when students use
+   `9998`;
 3. the notebook separates carry-over students first;
-4. their topic information is read from `previous_final_assignments`, not from
-   the current `topics.xlsx`;
-5. remaining students enter the current-year topic optimizer;
-6. both groups are combined;
-7. valid previous supervision remains fixed up to current maximum capacities;
-8. departed, ineligible, language-incompatible, or excess carry-over roles are
-   reassigned normally;
-9. the final results ZIP includes the combined current-year allocation.
+4. when a matching previous row exists, its topic information is used directly
+   rather than the current `topics.xlsx`;
+5. when no previous file was uploaded, unresolved `9998` rows are retained and
+   marked `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED`;
+6. remaining students enter the current-year topic optimizer;
+7. resolved carry-over and current-year students are combined;
+8. valid previous supervision remains fixed up to current maximum capacities;
+9. departed, ineligible, language-incompatible, or excess resolved carry-over
+   roles are reassigned normally;
+10. unresolved manual-review rows are skipped by automatic supervisor matching;
+11. the final results ZIP includes all rows, including those requiring manual
+    review.
 
 The separate **Reassign supervision** workflow can subsequently reassign a role
-for a carried student even when the carried topic is absent from this year's
-`topics.xlsx` or when its old topic ID has been reused for a different topic.
+for a resolved carried student even when the carried topic is absent from this
+year's `topics.xlsx` or when its old topic ID has been reused for a different
+topic.

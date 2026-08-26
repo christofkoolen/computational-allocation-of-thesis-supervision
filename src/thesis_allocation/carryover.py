@@ -23,6 +23,11 @@ from thesis_allocation.schema import (
 from thesis_allocation.topics import allocate_topics
 
 
+MANUAL_REVIEW_TEXT = "CARRY-OVER STUDENT - MANUAL REVIEW NEEDED"
+MANUAL_REVIEW_SOURCE = "carry_over_manual_review"
+MANUAL_REVIEW_ROLE_SOURCE = "manual_review"
+MANUAL_REVIEW_TOPIC_PREFIX = "manual-carry-over:"
+
 ROLE_COLUMNS = {
     "daily_supervisor": {
         "label": "Daily supervisor",
@@ -52,6 +57,7 @@ class AnnualTopicAllocationResult:
     total_cost: int
     assigned_count: int
     carry_over_count: int
+    manual_review_count: int
     warnings: tuple[str, ...] = ()
 
 
@@ -177,6 +183,67 @@ def _release_excess_carry_over_capacity(
     return result, warnings
 
 
+def _manual_review_row(student: pd.Series) -> dict[str, object]:
+    """Create a non-matchable placeholder row for unresolved topic 9998."""
+
+    email = normalize_email(student.get("email"))
+    row = student.to_dict()
+    row["assigned_topic_id"] = f"{MANUAL_REVIEW_TOPIC_PREFIX}{email}"
+    row["assigned_topic"] = MANUAL_REVIEW_TEXT
+    row["assigned_topic_description"] = MANUAL_REVIEW_TEXT
+    row["own_topic_description"] = clean_text(row.get("own_topic_description"))
+    row["assigned_rank"] = pd.NA
+    row["assigned_cost"] = pd.NA
+    row["assigned_language"] = MANUAL_REVIEW_TEXT
+    row["topic_assignment_source"] = MANUAL_REVIEW_SOURCE
+    for spec in ROLE_COLUMNS.values():
+        row[spec["name"]] = ""
+        row[spec["email"]] = ""
+        row[spec["score"]] = pd.NA
+        row[spec["source"]] = MANUAL_REVIEW_ROLE_SOURCE
+    return row
+
+
+def finalize_manual_review_assignments(assignments: pd.DataFrame) -> pd.DataFrame:
+    """Expose unresolved carry-over rows clearly without inventing identifiers."""
+
+    result = assignments.copy()
+    if "topic_assignment_source" not in result.columns:
+        return result
+    manual = result["topic_assignment_source"].map(clean_text).str.casefold().eq(
+        MANUAL_REVIEW_SOURCE
+    )
+    if not manual.any():
+        return result
+
+    result.loc[manual, "assigned_topic_id"] = CARRY_OVER_TOPIC_ID
+    for column in (
+        "assigned_topic",
+        "assigned_topic_description",
+        "assigned_language",
+        "daily_supervisor",
+        "promotor",
+    ):
+        if column in result.columns:
+            result.loc[manual, column] = MANUAL_REVIEW_TEXT
+    for column in ("daily_supervisor_email", "promotor_email"):
+        if column in result.columns:
+            result.loc[manual, column] = ""
+    for column in (
+        "daily_supervisor_match_score",
+        "promotor_match_score",
+    ):
+        if column in result.columns:
+            result.loc[manual, column] = pd.NA
+    for column in (
+        "daily_supervisor_assignment_source",
+        "promotor_assignment_source",
+    ):
+        if column in result.columns:
+            result.loc[manual, column] = MANUAL_REVIEW_ROLE_SOURCE
+    return result
+
+
 def allocate_annual_topics(
     preferences: pd.DataFrame,
     topics: pd.DataFrame,
@@ -202,13 +269,6 @@ def allocate_annual_topics(
     carry_students = students.loc[carry_mask].copy()
     new_students = students.loc[~carry_mask].copy()
 
-    if not carry_students.empty and previous_final_assignments is None:
-        emails = ", ".join(carry_students["email"].tolist())
-        raise InputValidationError(
-            f"Topic ID {CARRY_OVER_TOPIC_ID} requires previous_final_assignments; "
-            f"carry-over student(s): {emails}"
-        )
-
     new_allocation = allocate_topics(
         new_students,
         topic_table,
@@ -220,8 +280,23 @@ def allocate_annual_topics(
 
     warnings: list[str] = list(new_allocation.warnings)
     carry_rows: list[dict[str, object]] = []
+    manual_review_count = 0
 
-    if not carry_students.empty:
+    if not carry_students.empty and previous_final_assignments is None:
+        carry_rows.extend(
+            _manual_review_row(student)
+            for _, student in carry_students.iterrows()
+        )
+        manual_review_count = len(carry_students)
+        emails = ", ".join(carry_students["email"].tolist())
+        warnings.append(
+            f"Topic ID {CARRY_OVER_TOPIC_ID} was selected but "
+            "previous_final_assignments was not provided. The run continued and "
+            f"{manual_review_count} carry-over student(s) were marked for manual "
+            f"review with automatic supervisor matching skipped: {emails}"
+        )
+
+    elif not carry_students.empty:
         previous_table = normalize_assignments(previous_final_assignments)
         previous_by_email = previous_table.set_index("email", drop=False)
         missing = [
@@ -321,8 +396,13 @@ def allocate_annual_topics(
         assignments=combined,
         matching_topics=matching_topics,
         total_cost=new_allocation.total_cost,
-        assigned_count=new_allocation.assigned_count + len(carry_assignments),
+        assigned_count=(
+            new_allocation.assigned_count
+            + len(carry_assignments)
+            - manual_review_count
+        ),
         carry_over_count=len(carry_assignments),
+        manual_review_count=manual_review_count,
         warnings=tuple(dict.fromkeys(warnings)),
     )
 
@@ -338,10 +418,9 @@ def augment_topics_with_carry_over(
     if "topic_assignment_source" not in assignment_table.columns:
         return topic_table
 
+    source = assignment_table["topic_assignment_source"].map(clean_text).str.casefold()
     carry = assignment_table[
-        assignment_table["topic_assignment_source"].map(clean_text).str.casefold().eq(
-            "carry_over"
-        )
+        source.isin({"carry_over", MANUAL_REVIEW_SOURCE})
     ]
     if carry.empty:
         return topic_table
@@ -352,7 +431,12 @@ def augment_topics_with_carry_over(
     seen: set[str] = set()
     for _, row in carry.iterrows():
         topic_id = normalize_topic_id(row["assigned_topic_id"])
-        if not topic_id or topic_id == OWN_TOPIC_ID or topic_id in existing_ids or topic_id in seen:
+        if (
+            not topic_id
+            or topic_id == OWN_TOPIC_ID
+            or topic_id in existing_ids
+            or topic_id in seen
+        ):
             continue
         title = f"Carry-over topic {topic_id}"
         suffix = 2
