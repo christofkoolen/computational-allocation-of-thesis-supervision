@@ -14,7 +14,10 @@ TEMPLATE_COLUMNS = {
     "researchers.xlsx": [
         "full_name",
         "email",
-        "appointment",
+        "appointment_type",
+        "appointment_percentage",
+        "comment",
+        "timestamp",
         "supervision_languages",
         "profile_url",
         "publications_url",
