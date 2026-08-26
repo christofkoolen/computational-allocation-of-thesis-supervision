@@ -6,6 +6,10 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from thesis_allocation.carryover import (
+    augment_topics_with_carry_over,
+    restore_carry_over_topic_display,
+)
 from thesis_allocation.errors import InputValidationError
 from thesis_allocation.matching import (
     ROLE_SPECS,
@@ -49,10 +53,12 @@ def reassign_supervision(
             "Provide exactly one target: student_email or departing_supervisor_email"
         )
 
+    original_assignments = assignments.copy()
+    matching_topics = augment_topics_with_carry_over(assignments, topics)
     baseline: MatchResult = match_supervisors(
         assignments,
         researchers,
-        topics,
+        matching_topics,
         backend,
         roles=(),
         allow_partial=True,
@@ -109,7 +115,7 @@ def reassign_supervision(
     updated = match_supervisors(
         working,
         researchers,
-        topics,
+        matching_topics,
         backend,
         roles=(role,),
         allow_partial=allow_partial,
@@ -117,8 +123,12 @@ def reassign_supervision(
         excluded_researcher_emails=excluded,
         target_student_emails=target_students,
     )
+    restored_assignments = restore_carry_over_topic_display(
+        updated.assignments,
+        original_assignments,
+    )
 
-    new_rows = updated.assignments.set_index("email")
+    new_rows = restored_assignments.set_index("email")
     log = previous.copy()
     log["role"] = role
     log["new_supervisor"] = log["student_email"].map(
@@ -147,7 +157,7 @@ def reassign_supervision(
     ]
 
     return ReplacementResult(
-        assignments=updated.assignments,
+        assignments=restored_assignments,
         summary=updated.summary,
         log=log.reset_index(drop=True),
         warnings=updated.warnings,
