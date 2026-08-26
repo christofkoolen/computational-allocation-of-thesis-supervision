@@ -23,26 +23,30 @@ not stop the workflow. If the same topic appears more than once, its earliest
 occurrence has the lowest preference cost. A repeated choice does not create
 extra topic capacity or an additional fallback option.
 
-Topic ID `9998` is reserved for previous-year carry-over. A continuing student
-who wants to retain the previous thesis allocation enters `9998` as
-`preference_1`; preferences 2 and 3 may then be blank. When the previous
-`final_assignments` file is available, upload it as an optional fourth file,
-normally named `previous_final_assignments.xlsx`.
+Topic ID `9998` is reserved for previous-year carry-over. If `9998` appears in
+**any** of the three preference fields, the whole student row is treated as
+carry-over and the other topic choices on that row are ignored for current-year
+topic allocation. If a form requires all three preference fields to contain a
+value, `9998 / 9998 / 9998` is valid and represents one carry-over student.
+When the previous `final_assignments` file is available, upload it as an optional
+fourth file, normally named `previous_final_assignments.xlsx`.
 
 If no previous final-assignment file is available, the Complete allocation run
 still completes. The unresolved `9998` student stays in the outputs and is marked
 `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED`; automatic topic inference and
 supervisor/promotor matching are skipped for that row.
 
-Topic ID `9999` is reserved for an own topic. When a student selects it,
-`own_topic_description` must contain a short description of that own topic.
-Repeated `9999` preferences are accepted as well; the earliest occurrence has
-the lowest preference cost.
+Topic ID `9999` is reserved for an own topic on a row that does not contain
+`9998`. When a non-carry-over student selects it, `own_topic_description` must
+contain a short description of that own topic. Repeated `9999` preferences are
+accepted as well; the earliest occurrence has the lowest preference cost. If a
+row contains both `9998` and `9999`, `9998` takes precedence and the row is
+handled as carry-over.
 
-An own topic does not share an offered-topic capacity. Therefore, if a student
-ranks `9999` first, it is selected during topic allocation. Supervisor and
-promotor allocation happens afterwards and remains subject to researcher
-eligibility, language, and capacity.
+An own topic does not share an offered-topic capacity. Therefore, if a
+non-carry-over student ranks `9999` first, it is selected during topic allocation.
+Supervisor and promotor allocation happens afterwards and remains subject to
+researcher eligibility, language, and capacity.
 
 The researcher template contains `supervision_languages`, which records the
 languages in which each researcher can supervise. The topic template has no
@@ -69,6 +73,20 @@ is valid input. If `A` can be assigned, its first occurrence is the effective
 preference because it has the lowest rank cost. If `A` cannot be assigned because
 its topic capacity is exhausted, the repeated `A` does not provide another
 alternative and `B` remains a third-choice fallback.
+
+For carry-over, `9998` is an instruction rather than a ranked fallback. For
+example:
+
+```text
+preference_1 = A
+preference_2 = 9998
+preference_3 = B
+```
+
+means “continue my previous allocation,” not “try A first, then carry over.” The
+student is separated before the current-year topic optimizer runs. The original
+submitted preference values remain in the generated assignment files for
+auditing, but the ordinary topic choices on that row are not used for allocation.
 
 For a `9998` student with a matching previous final-assignment row, the notebook
 carries forward the previous topic, topic description, assigned language, daily
@@ -98,8 +116,9 @@ for that role. If carry-over demand exceeds a researcher's current maximum, the
 excess student's role is cleared and reassigned normally. The carried topic stays
 fixed.
 
-A repeat student who wants a new topic simply submits ordinary current-year topic
-IDs. Their presence in the previous assignment file does not trigger carry-over.
+A repeat student who wants a new topic must submit ordinary current-year topic
+IDs with no `9998` in any of the three fields. Their presence in the previous
+assignment file does not trigger carry-over.
 
 Topic preferences are matched by exact topic ID only. Typed titles, approximate
 titles, and fuzzy matching are not used. The selected supervision language is
@@ -139,14 +158,14 @@ replacement matching. Older files without that field fall back to the stored
 Select **Runtime → Run all** after choosing and configuring the workflow.
 
 For **Complete allocation**, upload the researcher, topic, and student-preference
-files together when the upload window appears. If one or more students use
-`9998` and the previous final assignments are available, upload that file in the
-same window as an optional fourth file. The notebook separates carry-over
-students first, allocates current-year topics for everyone else, then assigns any
-open daily-supervisor and promotor roles. If the previous file is missing,
-unresolved `9998` rows are retained for manual review instead of stopping the
-run. The notebook downloads `thesis_allocation_results.zip` when the workflow
-completes.
+files together when the upload window appears. If one or more students have
+`9998` in any preference field and the previous final assignments are available,
+upload that file in the same window as an optional fourth file. The notebook
+separates carry-over students first, allocates current-year topics for everyone
+else, then assigns any open daily-supervisor and promotor roles. If the previous
+file is missing, unresolved `9998` rows are retained for manual review instead
+of stopping the run. The notebook downloads `thesis_allocation_results.zip` when
+the workflow completes.
 
 `run_report.json` includes `manual_review_students` in addition to the carry-over
 count, and the notebook prints the corresponding warning messages.

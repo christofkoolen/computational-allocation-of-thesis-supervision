@@ -71,26 +71,44 @@ accepted as identifiers and no fuzzy or approximate title matching is performed.
 | --- | --- | --- |
 | `full_name` | Yes | Student display name |
 | `email` | Yes | Unique student identifier |
-| `preference_1` | Yes | First-choice topic ID, or `9998` for previous-year carry-over |
+| `preference_1` | Yes | First-choice topic ID; `9998` in any preference field turns the whole row into previous-year carry-over |
 | `preference_1_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when this occurrence is assigned |
-| `preference_2` | Yes normally; may be blank for `9998` | Second-choice topic ID |
+| `preference_2` | Yes normally; may be blank for a carry-over row | Second-choice topic ID; `9998` here also means carry-over |
 | `preference_2_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when this occurrence is assigned |
-| `preference_3` | Yes normally; may be blank for `9998` | Third-choice topic ID |
+| `preference_3` | Yes normally; may be blank for a carry-over row | Third-choice topic ID; `9998` here also means carry-over |
 | `preference_3_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when this occurrence is assigned |
-| `own_topic_description` | Conditional | Short description required when any preference is topic ID `9999` |
+| `own_topic_description` | Conditional | Short description required when a non-carry-over row contains topic ID `9999` |
 
 ### Previous-year carry-over: topic ID `9998`
 
-A continuing student who wants to retain the previous thesis allocation enters:
+A continuing student who wants to retain the previous thesis allocation may put
+`9998` in **any** of the three preference fields. For example:
+
+```text
+preference_1 = current-topic-A
+preference_2 = 9998
+preference_3 = current-topic-B
+```
+
+This is treated as carry-over, not as “current-topic-A first, carry-over second.”
+`9998` is an instruction rather than a ranked fallback. Once it appears anywhere
+on the row, all three ranked topic choices are ignored for current-year topic
+allocation and the student is handled through the carry-over workflow. The
+original submitted preference values remain present in the output for auditing.
+
+If a form requires every preference field to contain a value, this is also valid:
 
 ```text
 preference_1 = 9998
+preference_2 = 9998
+preference_3 = 9998
 ```
 
-`9998` is allowed only in `preference_1`. For that student, `preference_2` and
-`preference_3` may be blank. If the previous `final_assignments` file is
-available, provide it to Complete allocation, normally as
-`previous_final_assignments.xlsx`.
+It represents one carry-over student. Repeating `9998` does not create multiple
+requests or any preference cost.
+
+If the previous `final_assignments` file is available, provide it to Complete
+allocation, normally as `previous_final_assignments.xlsx`.
 
 When a matching previous row exists, the student is matched by normalized email.
 That previous row supplies the carried topic, topic description, assigned
@@ -116,9 +134,13 @@ If a previous final-assignment file is supplied but does not contain a matching
 student email for a `9998` row, the run stops with a validation error because the
 provided continuity file is inconsistent for that student.
 
-A repeat student who wants a new topic simply submits three ordinary topic IDs.
-Their presence in `previous_final_assignments` does not trigger carry-over by
-itself.
+A repeat student who wants a new topic must submit three ordinary topic IDs with
+no `9998` in any preference field. Their presence in
+`previous_final_assignments` does not trigger carry-over by itself.
+
+If a row contains both `9998` and `9999`, `9998` takes precedence and the row is
+handled as carry-over. `own_topic_description` is therefore not required for
+that annual run.
 
 See `docs/CARRY_OVER.md` for the complete carry-over policy.
 
@@ -158,11 +180,11 @@ the subsequent supervision stage has too little language-compatible capacity. A
 complete run therefore becomes infeasible if no compatible supervision assignment
 can be made, unless partial results are explicitly allowed.
 
-When a student chooses `9999`, that choice is treated as that student's own,
-unique thesis topic. It is not constrained by an offered-topic capacity. The
-`own_topic_description` is carried into `assigned_topic_description` and is used
-as the topic text for semantic supervisor and promotor matching when `9999` is
-allocated.
+When a student chooses `9999` on a row without `9998`, that choice is treated as
+that student's own, unique thesis topic. It is not constrained by an offered-
+topic capacity. The `own_topic_description` is carried into
+`assigned_topic_description` and is used as the topic text for semantic
+supervisor and promotor matching when `9999` is allocated.
 
 Repeated `9999` preferences are accepted. If `9999` appears more than once, the
 earliest occurrence has the lowest rank cost. Because an own topic has no shared
