@@ -26,6 +26,18 @@ from thesis_allocation.templates import create_templates
 from thesis_allocation.topics import allocate_topics
 
 
+SHAREABLE_ASSIGNMENT_COLUMNS = (
+    "full_name",
+    "email",
+    "assigned_topic",
+    "assigned_language",
+    "daily_supervisor",
+    "daily_supervisor_email",
+    "promotor",
+    "promotor_email",
+)
+
+
 def _add_backend_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--backend",
@@ -270,6 +282,10 @@ def _command_run(args: argparse.Namespace) -> None:
         restored_assignments,
         output_directory / "final_assignments.xlsx",
     )
+    shareable_path = write_table(
+        restored_assignments.loc[:, SHAREABLE_ASSIGNMENT_COLUMNS].copy(),
+        output_directory / "final_assignments_shareable.xlsx",
+    )
     summary_path = write_table(
         matching.summary,
         output_directory / "supervisor_summary.xlsx",
@@ -293,6 +309,7 @@ def _command_run(args: argparse.Namespace) -> None:
             "researchers": str(researchers_path),
             "topic_assignments": str(topics_path),
             "final_assignments": str(final_path),
+            "final_assignments_shareable": str(shareable_path),
             "supervisor_summary": str(summary_path),
         },
     }
@@ -306,6 +323,7 @@ def _command_run(args: argparse.Namespace) -> None:
         researchers_path,
         topics_path,
         final_path,
+        shareable_path,
         summary_path,
         report_path,
     ):
