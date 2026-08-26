@@ -107,7 +107,7 @@ thesis-allocation run \
 ```
 
 The first semantic run downloads the default
-`sentence-transformers/all-MiniLM-L6-v2` model. Existing profile text is reused.
+`BAAI/bge-base-en-v1.5` model. Existing profile text is reused.
 Missing profile or publication text is retrieved when a corresponding URL is
 available. Add `--skip-scrape` to prohibit network retrieval.
 
