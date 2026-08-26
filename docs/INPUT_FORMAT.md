@@ -52,7 +52,7 @@ language field because language eligibility belongs to researchers.
 | `topic_title` | Yes | Unique official topic title |
 | `topic_description` | No | Text included in semantic matching |
 | `submitter_email` | No | Researcher who proposed the topic; receives absolute supervision priority when eligible and within maximum capacity |
-| `capacity` | No | Number of students who may receive the topic; defaults to 1 |
+| `capacity` | No | Number of students who may receive the topic; defaults to 1 when the column is omitted |
 
 Topic ID `9999` is reserved for a student's own topic and must not appear in
 the topics file. Topic IDs are never generated from titles.
@@ -62,28 +62,34 @@ The aliases `proposed_thesis_topic`, `subject_field`, and
 
 ## Student preferences
 
-One row represents one student's ranked submission. Students must submit three
-different topic IDs. Topic titles are not accepted as identifiers and no fuzzy
-or approximate title matching is performed.
+One row represents one student's ranked submission. Students must provide all
+three preference fields as topic IDs. Topic titles are not accepted as identifiers
+and no fuzzy or approximate title matching is performed.
 
 | Column | Required | Meaning |
 | --- | --- | --- |
 | `full_name` | Yes | Student display name |
 | `email` | Yes | Unique student identifier |
 | `preference_1` | Yes | First-choice topic ID |
-| `preference_1_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when the topic is assigned |
+| `preference_1_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when this occurrence is assigned |
 | `preference_2` | Yes | Second-choice topic ID |
-| `preference_2_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when the topic is assigned |
+| `preference_2_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when this occurrence is assigned |
 | `preference_3` | Yes | Third-choice topic ID |
-| `preference_3_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when the topic is assigned |
+| `preference_3_languages` | No | Acceptable supervision languages for this choice; the first listed language becomes the selected language when this occurrence is assigned |
 | `own_topic_description` | Conditional | Short description required when any preference is topic ID `9999` |
+
+The three topic IDs do not have to be different. Repeated topic IDs are accepted
+and do not cause input validation to fail. For example, `A, A, B` is valid. If
+`A` is assignable, its first occurrence has the lowest rank cost. If `A` is not
+assignable because its capacity is exhausted, the repeated occurrence does not
+create a new fallback and `B` remains a third-choice option.
 
 The legacy column names `topic_1`, `topic_2`, `topic_3`, and
 `topic_1_language` through `topic_3_language` are accepted, but their values
 must still be topic IDs.
 
 Topic allocation itself does not reject a topic because of language. The first
-listed supervision language for the selected preference is written to
+listed supervision language for the selected preference occurrence is written to
 `assigned_language`. That value is then a **hard eligibility constraint** during
 daily-supervisor and promotor matching. A researcher whose
 `supervision_languages` do not support the student's `assigned_language` is
@@ -108,17 +114,14 @@ can be made, unless partial results are explicitly allowed.
 
 When a student chooses `9999`, that choice is treated as that student's own,
 unique thesis topic. It is not constrained by an offered-topic capacity. The
-`own_topic_description` belongs only to the `9999` preference, is carried into
-the assignment output, and is used as the topic text for semantic supervisor
-and promotor matching when `9999` is allocated.
+`own_topic_description` is carried into the assignment output and is used as the
+topic text for semantic supervisor and promotor matching when `9999` is allocated.
 
-Because all three preference IDs must be different, `9999` can appear at most
-once. An own topic has no shared topic-capacity constraint, so ranking `9999` as
-preference 1 means it will be selected during the topic-allocation stage. Ranking
-it second or third instead makes it an always-available fallback if higher-ranked
-offered topics cannot be assigned. Daily-supervisor and promotor allocation is a
-separate stage and remains subject to researcher eligibility, language, and
-capacity constraints.
+Repeated `9999` preferences are accepted. If `9999` appears more than once, the
+earliest occurrence has the lowest rank cost. Because an own topic has no shared
+topic-capacity constraint, a first-choice `9999` will be selected during topic
+allocation. Daily-supervisor and promotor allocation is a separate stage and
+remains subject to researcher eligibility, language, and capacity constraints.
 
 By default, the final row is retained when a form export contains duplicate
 student emails. Use `--duplicate-policy error` or
