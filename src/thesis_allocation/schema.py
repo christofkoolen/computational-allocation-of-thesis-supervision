@@ -10,6 +10,7 @@ import pandas as pd
 from thesis_allocation.errors import InputValidationError
 
 
+CARRY_OVER_TOPIC_ID = "9998"
 OWN_TOPIC_ID = "9999"
 
 RESEARCHER_ALIASES = {
@@ -290,13 +291,18 @@ def normalize_topics(frame: pd.DataFrame) -> pd.DataFrame:
     issues.extend(_validate_unique(result, "topic_id", "Topic IDs"))
     issues.extend(_validate_unique(result, "topic_title", "Topic titles"))
 
-    reserved = result["topic_id"].eq(OWN_TOPIC_ID)
-    if reserved.any():
-        rows = ", ".join(str(index + 2) for index in result.index[reserved][:8])
-        issues.append(
-            f"topic ID {OWN_TOPIC_ID} is reserved for a student's own topic and "
-            f"must not appear in the topics file; invalid row(s): {rows}"
-        )
+    reserved_messages = {
+        CARRY_OVER_TOPIC_ID: "a previous-year carry-over instruction",
+        OWN_TOPIC_ID: "a student's own topic",
+    }
+    for reserved_id, meaning in reserved_messages.items():
+        reserved = result["topic_id"].eq(reserved_id)
+        if reserved.any():
+            rows = ", ".join(str(index + 2) for index in result.index[reserved][:8])
+            issues.append(
+                f"topic ID {reserved_id} is reserved for {meaning} and must not "
+                f"appear in the topics file; invalid row(s): {rows}"
+            )
 
     issues.extend(_numeric_capacity(result, "capacity"))
     invalid_capacity = result["capacity"].lt(1)
@@ -318,8 +324,9 @@ def normalize_preferences(
     frame: pd.DataFrame,
     *,
     duplicate_policy: str = "keep-last",
+    allow_carry_over: bool = False,
 ) -> pd.DataFrame:
-    """Return canonical top-three topic-ID preferences and validate own topics."""
+    """Return canonical topic preferences and validate reserved topic instructions."""
 
     if duplicate_policy not in {"error", "keep-first", "keep-last"}:
         raise ValueError("duplicate_policy must be error, keep-first, or keep-last")
@@ -353,14 +360,32 @@ def normalize_preferences(
             f"preference_{rank}_languages"
         ].map(clean_text)
 
-    issues.extend(
-        _require_nonempty(
-            result,
-            ("full_name", "email", "preference_1", "preference_2", "preference_3"),
-        )
-    )
+    issues.extend(_require_nonempty(result, ("full_name", "email", "preference_1")))
+    carry_over = result["preference_1"].eq(CARRY_OVER_TOPIC_ID)
 
-    for _, row in result.iterrows():
+    for index, row in result.iterrows():
+        is_carry_over = bool(carry_over.at[index])
+        if CARRY_OVER_TOPIC_ID in {
+            row["preference_2"],
+            row["preference_3"],
+        }:
+            issues.append(
+                f"student '{row['email']}' may use topic ID {CARRY_OVER_TOPIC_ID} "
+                "only as preference_1"
+            )
+        if is_carry_over:
+            if not allow_carry_over:
+                issues.append(
+                    f"student '{row['email']}' selected topic ID "
+                    f"{CARRY_OVER_TOPIC_ID}; carry-over is supported only by the "
+                    "complete allocation workflow with previous final assignments"
+                )
+            continue
+        for rank in (2, 3):
+            if not row[f"preference_{rank}"]:
+                issues.append(
+                    f"'preference_{rank}' is blank on spreadsheet row {index + 2}"
+                )
         preferences = [row[f"preference_{rank}"] for rank in (1, 2, 3)]
         if OWN_TOPIC_ID in preferences and not row["own_topic_description"]:
             issues.append(
