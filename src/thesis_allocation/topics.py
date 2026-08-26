@@ -125,6 +125,7 @@ def allocate_topics(
                         "student_email": email,
                         "topic_id": OWN_TOPIC_ID,
                         "topic_title": "Own topic",
+                        "topic_description": student["own_topic_description"],
                         "own_topic_description": student["own_topic_description"],
                         "rank": rank,
                         "language": assigned_language,
@@ -148,6 +149,7 @@ def allocate_topics(
                 "student_email": email,
                 "topic_id": topic["topic_id"],
                 "topic_title": topic["topic_title"],
+                "topic_description": topic["topic_description"],
                 "own_topic_description": "",
                 "rank": rank,
                 "language": assigned_language,
@@ -176,6 +178,9 @@ def allocate_topics(
     )
     result["assigned_topic"] = result["email"].map(
         lambda email: assignments_by_email.get(email, {}).get("topic_title")
+    )
+    result["assigned_topic_description"] = result["email"].map(
+        lambda email: assignments_by_email.get(email, {}).get("topic_description")
     )
     result["own_topic_description"] = result["email"].map(
         lambda email: assignments_by_email.get(email, {}).get(
