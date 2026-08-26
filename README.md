@@ -425,7 +425,40 @@ A complete allocation produces:
 | `supervisor_summary.xlsx` | Researcher minimums, maximums, actual workload, language information, and capacity flags |
 | `run_report.json` | Machine-readable totals, warnings, and output paths |
 
-`final_assignments.xlsx` includes `assigned_topic_description`. This field is the allocated offered-topic description, the student's own-topic description for `9999`, or the carried previous description for `9998`.
+### Fields in `final_assignments.xlsx`
+
+The full final-assignment workbook is the authoritative allocation record and is also the preferred input for future `9998` carry-over and reassignment workflows.
+
+| Field | Meaning |
+| --- | --- |
+| `full_name` | Student's name |
+| `email` | Student's email; the canonical unique student identifier |
+| `preference_1` | Student's first-choice topic ID, or `9998` for a carry-over submission |
+| `preference_1_languages` | Language or languages submitted for preference 1 |
+| `preference_2` | Student's second-choice topic ID; may be blank for a `9998` submission |
+| `preference_2_languages` | Language or languages submitted for preference 2 |
+| `preference_3` | Student's third-choice topic ID; may be blank for a `9998` submission |
+| `preference_3_languages` | Language or languages submitted for preference 3 |
+| `own_topic_description` | Student's own-topic description when `9999` is used; otherwise normally blank |
+| `assigned_topic_id` | Topic ID actually allocated or carried forward to the student |
+| `assigned_topic` | Title of the allocated topic, `Own topic` for `9999`, or the previous title for `9998` |
+| `assigned_topic_description` | Description of the allocated topic; copied from the current topic, the `9999` own-topic description, or the previous final assignment for `9998` |
+| `assigned_rank` | Rank of the selected current-year preference: 1, 2, or 3; blank for `9998` carry-over students |
+| `assigned_cost` | Topic-allocation cost; currently identical to `assigned_rank`; blank for `9998` carry-over students |
+| `assigned_language` | Supervision language carried from the selected current-year preference or from the previous final assignment for `9998` |
+| `topic_assignment_source` | How the topic entered the current result: normally `ranked_preference` or `carry_over` |
+| `daily_supervisor` | Name of the assigned daily supervisor |
+| `daily_supervisor_email` | Email of the assigned daily supervisor; canonical researcher identifier |
+| `daily_supervisor_match_score` | Semantic similarity between the assigned topic text and the daily supervisor's profile/publication text; normally blank when the role was preserved as carry-over |
+| `daily_supervisor_assignment_source` | Why the daily supervisor was assigned, such as `carry_over`, `topic_submitter`, `semantic`, or `preassigned` in a direct supervisor-matching workflow |
+| `promotor` | Name of the assigned promotor |
+| `promotor_email` | Email of the assigned promotor; canonical researcher identifier |
+| `promotor_match_score` | Semantic similarity between the assigned topic text and the promotor's profile/publication text; normally blank when the role was preserved as carry-over |
+| `promotor_assignment_source` | Why the promotor was assigned, such as `carry_over`, `topic_submitter`, `semantic`, or `preassigned` in a direct supervisor-matching workflow |
+
+For `9998` students, the previous `final_assignments.xlsx` row is the authoritative source for `assigned_topic_id`, `assigned_topic`, `assigned_topic_description`, and `assigned_language`. The current `topics.xlsx` is not consulted for that student's carried topic. The previous daily supervisor and promotor are retained when they remain valid and fit within the current maximum capacity; otherwise only the affected role is reopened for matching.
+
+Older previous-final-assignment files without `assigned_topic_description` remain accepted. In that case, the previous `assigned_topic` title is used as the semantic matching fallback. New final-assignment files include the description so subsequent carry-over runs are self-contained.
 
 `final_assignments_shareable.xlsx` contains exactly these columns:
 
