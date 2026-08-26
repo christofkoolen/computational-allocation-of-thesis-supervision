@@ -63,6 +63,7 @@ class CarryOverTests(unittest.TestCase):
             report = json.loads((output / "run_report.json").read_text(encoding="utf-8"))
             self.assertEqual(report["assigned_students"], 2)
             self.assertEqual(report["carry_over_students"], 1)
+            self.assertEqual(report["manual_review_students"], 0)
             self.assertEqual(report["preference_cost"], 1)
 
     def test_missing_previous_supervisor_is_cleared_and_reassigned(self) -> None:
@@ -305,8 +306,9 @@ class CarryOverTests(unittest.TestCase):
             self.assertEqual(final["topic_assignment_source"], "ranked_preference")
             report = json.loads((output / "run_report.json").read_text(encoding="utf-8"))
             self.assertEqual(report["carry_over_students"], 0)
+            self.assertEqual(report["manual_review_students"], 0)
 
-    def test_9998_requires_matching_previous_final_assignment(self) -> None:
+    def test_9998_without_previous_final_assignments_is_marked_for_manual_review(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             researchers, topics, preferences, previous = self._write_inputs(root)
@@ -330,7 +332,51 @@ class CarryOverTests(unittest.TestCase):
                 ]
             )
 
-            self.assertEqual(exit_code, 2)
+            self.assertEqual(exit_code, 0)
+            marker = "CARRY-OVER STUDENT - MANUAL REVIEW NEEDED"
+            final = pd.read_excel(output / "final_assignments.xlsx").set_index("email")
+            carried = final.loc["carry@example.org"]
+            self.assertEqual(str(carried["assigned_topic_id"]), "9998")
+            self.assertEqual(carried["assigned_topic"], marker)
+            self.assertEqual(carried["assigned_topic_description"], marker)
+            self.assertEqual(carried["assigned_language"], marker)
+            self.assertEqual(carried["daily_supervisor"], marker)
+            self.assertEqual(carried["promotor"], marker)
+            self.assertTrue(pd.isna(carried["daily_supervisor_email"]))
+            self.assertTrue(pd.isna(carried["promotor_email"]))
+            self.assertEqual(
+                carried["topic_assignment_source"],
+                "carry_over_manual_review",
+            )
+            self.assertEqual(
+                carried["daily_supervisor_assignment_source"],
+                "manual_review",
+            )
+            self.assertEqual(
+                carried["promotor_assignment_source"],
+                "manual_review",
+            )
+
+            new = final.loc["new@example.org"]
+            self.assertEqual(new["assigned_topic_id"], "privacy")
+            self.assertEqual(new["daily_supervisor_email"], "daily-new@example.org")
+            self.assertEqual(new["promotor_email"], "promotor-new@example.org")
+
+            topics_output = pd.read_excel(output / "topic_assignments.xlsx").set_index(
+                "email"
+            )
+            self.assertEqual(
+                topics_output.loc["carry@example.org", "assigned_topic"],
+                marker,
+            )
+
+            report = json.loads((output / "run_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["assigned_students"], 1)
+            self.assertEqual(report["carry_over_students"], 1)
+            self.assertEqual(report["manual_review_students"], 1)
+            self.assertTrue(
+                any("manual review" in warning.casefold() for warning in report["warnings"])
+            )
 
     @staticmethod
     def _write_inputs(root: Path) -> tuple[Path, Path, Path, Path]:
