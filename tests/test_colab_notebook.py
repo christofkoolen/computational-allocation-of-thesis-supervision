@@ -56,10 +56,12 @@ class ColabNotebookTests(unittest.TestCase):
         self.assertIn("skip section 1", markdown.casefold())
 
     def test_notebook_explains_own_topic_and_reassignment_email_fields(self) -> None:
-        markdown = "\n".join(
-            "".join(cell["source"])
-            for cell in self.notebook["cells"]
-            if cell["cell_type"] == "markdown"
+        markdown = " ".join(
+            "\n".join(
+                "".join(cell["source"])
+                for cell in self.notebook["cells"]
+                if cell["cell_type"] == "markdown"
+            ).split()
         )
         self.assertIn("ranking `9999` first", markdown)
         self.assertIn("`student_email`", markdown)
@@ -185,7 +187,7 @@ class ColabNotebookTests(unittest.TestCase):
         google_module.colab = colab_module
         namespace = {
             "task": "Complete allocation",
-            "matching_method": "Fast lexical matching",
+            "matching_method": "Lexical matching (fast)",
             "retrieve_researcher_profiles": False,
             "allow_partial_results": False,
             "allow_same_person_for_both_roles": False,
