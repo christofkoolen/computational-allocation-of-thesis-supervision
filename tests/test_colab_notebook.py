@@ -119,6 +119,7 @@ class ColabNotebookTests(unittest.TestCase):
                     set(archive.namelist()),
                     {
                         "final_assignments.xlsx",
+                        "final_assignments_shareable.xlsx",
                         "researchers_enriched.xlsx",
                         "run_report.json",
                         "supervisor_summary.xlsx",
