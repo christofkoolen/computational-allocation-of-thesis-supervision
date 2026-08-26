@@ -371,11 +371,27 @@ A complete allocation produces:
 | --- | --- |
 | `researchers_enriched.xlsx` | Researcher input, retrieved text, and retrieval status |
 | `topic_assignments.xlsx` | Assigned topic ID and title, selected language, assigned rank, and preference cost |
-| `final_assignments.xlsx` | Topic, daily supervisor, promotor, semantic scores, and assignment sources |
+| `final_assignments.xlsx` | Full allocation with topic, daily supervisor, promotor, semantic scores, assignment sources, and carried-forward student fields |
+| `final_assignments_shareable.xlsx` | Reduced publication copy with student identity, assigned topic and language, and supervisor/promotor names and emails |
 | `supervisor_summary.xlsx` | Researcher minimums, maximums, actual workload, language information, and capacity flags |
 | `run_report.json` | Machine-readable totals, warnings, and output paths |
 
-Assignment sources make the result easier to audit. A supervision assignment can come from an existing carry-over, topic-submitter priority, or general semantic matching.
+`final_assignments_shareable.xlsx` contains exactly these columns:
+
+```text
+full_name
+email
+assigned_topic
+assigned_language
+daily_supervisor
+daily_supervisor_email
+promotor
+promotor_email
+```
+
+It is a reduced-column sharing copy, not an anonymized dataset. It still contains student and researcher email addresses, so publication should follow the institution's applicable privacy rules.
+
+Assignment sources make the full result easier to audit. A supervision assignment can come from an existing carry-over, topic-submitter priority, or general semantic matching.
 
 The pipeline stops with an actionable error when the input is invalid or a complete assignment is impossible. Partial results can be explicitly enabled when appropriate.
 
@@ -385,7 +401,7 @@ The Colab notebook is intended for colleagues who do not normally use Python or 
 
 ### Complete allocation
 
-Choose **Complete allocation** and upload researcher data, topic data, and student preferences. The notebook allocates topics first, then daily supervisors and promotors, and downloads `thesis_allocation_results.zip`.
+Choose **Complete allocation** and upload researcher data, topic data, and student preferences. The notebook allocates topics first, then daily supervisors and promotors, and downloads `thesis_allocation_results.zip`. The ZIP includes both the full `final_assignments.xlsx` and the reduced `final_assignments_shareable.xlsx`.
 
 ### Reassignment
 
