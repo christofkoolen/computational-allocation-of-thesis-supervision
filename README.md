@@ -58,6 +58,15 @@ targets, semantic fit, and load balancing. A former employee who remains in
 `researchers.xlsx` with a positive role maximum is still treated as eligible, so
 remove that researcher or set the relevant maximum capacity to `0` for a new run.
 
+A useful `topic_description` improves the information available for semantic
+supervisor matching. For offered topics, the matcher combines `topic_title` and
+`topic_description` and passes that text to the default sentence-transformer
+embedding model. The resulting topic representation is compared with researcher
+profile and publication text. A concise, substantive description therefore gives
+the matcher more context about the expertise relevant to the topic. The description
+does not affect which ranked topic a student receives; it is used later when
+matching daily supervisors and promotors.
+
 Supervision languages belong to researcher records, not topic records. A
 student's selected supervision language is carried with the topic assignment as
 `assigned_language`. During daily-supervisor and promotor matching,
