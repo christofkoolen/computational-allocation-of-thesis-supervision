@@ -61,7 +61,14 @@ class AnyPreferenceCarryOverTests(unittest.TestCase):
             ]
         )
 
-    def _preferences(self, preference_1: object, preference_2: object, preference_3: object) -> pd.DataFrame:
+    def _preferences(
+        self,
+        preference_1: object,
+        preference_2: object,
+        preference_3: object,
+        *,
+        own_topic_description: str = "",
+    ) -> pd.DataFrame:
         return pd.DataFrame(
             [
                 {
@@ -73,7 +80,7 @@ class AnyPreferenceCarryOverTests(unittest.TestCase):
                     "preference_2_languages": "English",
                     "preference_3": preference_3,
                     "preference_3_languages": "English",
-                    "own_topic_description": "",
+                    "own_topic_description": own_topic_description,
                 }
             ]
         )
@@ -124,6 +131,23 @@ class AnyPreferenceCarryOverTests(unittest.TestCase):
         self.assertEqual(result.assigned_count, 1)
         self.assertEqual(result.total_cost, 0)
         self.assertEqual(row["assigned_topic_id"], "old-topic")
+        self.assertEqual(row["topic_assignment_source"], "carry_over")
+
+    def test_9998_overrides_9999_on_same_row(self) -> None:
+        result = allocate_annual_topics(
+            self._preferences(9999, 9998, "current-b"),
+            self.topics,
+            self.researchers,
+            self.previous,
+        )
+
+        row = result.assignments.iloc[0]
+        self.assertEqual(result.carry_over_count, 1)
+        self.assertEqual(result.total_cost, 0)
+        self.assertEqual(row["preference_1"], "9999")
+        self.assertEqual(row["preference_2"], "9998")
+        self.assertEqual(row["assigned_topic_id"], "old-topic")
+        self.assertEqual(row["assigned_topic"], "Previous thesis")
         self.assertEqual(row["topic_assignment_source"], "carry_over")
 
     def test_9998_in_later_preference_without_previous_file_needs_manual_review(self) -> None:
