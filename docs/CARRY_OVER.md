@@ -50,6 +50,7 @@ For a valid `9998` student, the previous record supplies:
 
 - `assigned_topic_id`
 - `assigned_topic`
+- `assigned_topic_description`
 - `assigned_language`
 - `own_topic_description`, when applicable
 - `daily_supervisor`
@@ -57,9 +58,23 @@ For a valid `9998` student, the previous record supplies:
 - `promotor`
 - `promotor_email`
 
+New allocation runs write `assigned_topic_description` into both the topic and
+final assignment outputs. This makes `final_assignments.xlsx` self-contained for
+future carry-over and for semantic supervisor reassignment.
+
+Older previous-final-assignment files that do not yet contain
+`assigned_topic_description` remain usable. In that case, the previous
+`assigned_topic` title is used as the semantic matching text fallback.
+
 The carry-over student is separated before the current-year topic optimizer is
-run. Their previous topic therefore does not consume capacity from this year's
-offered topics and does not need to appear in the current `topics.xlsx` file.
+run. Their previous final-assignment row is authoritative for the thesis topic.
+For a `9998` student, the supervisor-matching stage does not resolve that
+student's `assigned_topic_id` against the current `topics.xlsx` file. This is
+true even if the same topic ID has been reused for a different current-year
+topic.
+
+The carried topic therefore does not consume capacity from this year's offered
+topics and does not need to appear in the current `topics.xlsx` file.
 
 The preference cost reported for the annual optimizer concerns the students who
 participate in the current-year ranked-topic allocation. A `9998` carry-over does
@@ -70,15 +85,15 @@ not add a rank cost.
 The workflow attempts to keep the previous daily supervisor and promotor fixed.
 Each previous researcher is checked against the current `researchers` file.
 
-A previous role is kept when the researcher:
+A previous role can be kept when the researcher:
 
 1. can still be resolved in the current researcher data;
 2. has a positive current maximum capacity for that role; and
 3. supports the carried `assigned_language` when a language is specified.
 
-A kept carry-over assignment immediately counts against that researcher's
-current-year maximum capacity. New supervisor assignments are optimized around
-this fixed workload.
+Kept carry-over assignments count immediately against the researcher's current-
+year maximum capacity. New supervisor assignments are optimized around this
+fixed workload.
 
 For example, if a daily supervisor has a current maximum of `5` and already has
 two valid `9998` carry-over students, the optimizer has three additional daily-
@@ -98,9 +113,28 @@ previous daily supervisor  -> departed -> reassigned
 previous promotor          -> still valid -> carried over
 ```
 
-If the total number of fixed carry-over assignments for a researcher exceeds
-the researcher's current maximum capacity, the run stops rather than silently
-exceeding the current policy limit.
+### When carry-over demand exceeds the current maximum
+
+Current maximum capacities remain hard limits. Carry-over assignments do not
+allow a researcher to exceed the current maximum.
+
+If more `9998` students carry the same researcher than that researcher can
+currently supervise, carry-over roles are retained up to the current maximum in
+student input order. The excess role or roles are cleared and sent through the
+normal matching algorithm.
+
+For example:
+
+```text
+daily supervisor current maximum = 2
+
+student 1 -> previous supervisor retained
+student 2 -> previous supervisor retained
+student 3 -> previous supervisor cleared and reassigned
+```
+
+The third student's topic and assigned language remain carried over; only the
+overflowing supervision role is rematched.
 
 ## Relationship to topic ID `9999`
 
@@ -124,12 +158,15 @@ In **Complete allocation**:
 2. if any student uses `9998`, upload `previous_final_assignments` in the same
    upload window;
 3. the notebook separates carry-over students first;
-4. remaining students enter the current-year topic optimizer;
-5. both groups are combined;
-6. valid previous supervision remains fixed and consumes current capacity;
-7. open daily-supervisor and promotor roles are assigned normally;
-8. the final results ZIP includes the combined current-year allocation.
+4. their topic information is read from `previous_final_assignments`, not from
+   the current `topics.xlsx`;
+5. remaining students enter the current-year topic optimizer;
+6. both groups are combined;
+7. valid previous supervision remains fixed up to current maximum capacities;
+8. departed, ineligible, language-incompatible, or excess carry-over roles are
+   reassigned normally;
+9. the final results ZIP includes the combined current-year allocation.
 
 The separate **Reassign supervision** workflow can subsequently reassign a role
 for a carried student even when the carried topic is absent from this year's
-`topics.xlsx`.
+`topics.xlsx` or when its old topic ID has been reused for a different topic.
