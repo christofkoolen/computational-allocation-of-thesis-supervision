@@ -1,16 +1,16 @@
 # Computational allocation of thesis supervision
 
-This project allocates thesis topics, daily supervisors, and promotors in a reproducible and auditable way.
+This project allocates thesis topics, daily supervisors, and promotors.
 
 It is designed for situations where:
 
-- students submit ranked thesis-topic preferences;
-- offered topics may have limited capacity;
-- researchers have different supervision capacities and language abilities;
-- the researcher who proposed a topic should normally supervise it when eligible;
-- otherwise, the topic should be matched to a researcher with relevant expertise;
-- previous-year thesis allocations may need to carry over;
-- existing assignments may need to be reassigned when someone leaves.
+- students submit ranked thesis topic preferences
+- offered topics have limited capacity
+- researchers have different supervision capacities and language abilities
+- the researcher who proposed a topic should normally supervise it when eligible
+- otherwise, the topic should be matched to a researcher with relevant expertise
+- previous year thesis allocations may need to carry over
+- existing assignments may need to be reassigned when someone leaves
 
 The recommended way to use the project is through the Google Colab notebook. A Python command-line interface is also available for local or scripted use.
 
@@ -60,9 +60,9 @@ Optional fourth file:
 
 The optional fourth file is recommended when one or more students use topic ID `9998`. When it is supplied, the program uses it as the authoritative source for those students' previous topic and supervision information. When it is omitted, the run continues and unresolved `9998` students are marked for manual review rather than causing the whole allocation to fail.
 
-Canonical column names are recommended. Selected legacy aliases are still accepted.
+Canonical column names are recommended.
 
-The Colab notebook can generate blank templates, or they can be created locally with:
+The Colab notebook can generate blank templates or they can be created locally with:
 
 ```bash
 python -m thesis_allocation create-templates input
@@ -522,7 +522,7 @@ Choose **Reassign supervision** and upload the previous final assignments, resea
 The notebook offers:
 
 - **Semantic matching (recommended)**, using the sentence-transformer backend and the default `BAAI/bge-base-en-v1.5` model;
-- **Fast lexical matching**, using TF-IDF as an offline fallback.
+- **Lexical matching (fast)**, using TF-IDF as an offline fallback.
 
 A GPU runtime can accelerate embedding generation when CUDA is available to PyTorch and Sentence Transformers. The code does not force a CPU device, so the semantic model can use an available CUDA device automatically. Topic optimization, spreadsheet processing, and most other stages remain CPU work.
 
@@ -531,8 +531,6 @@ A GPU runtime can accelerate embedding generation when CUDA is available to PyTo
 Colab runs on a Google-hosted virtual machine, so uploaded student and researcher data leave the user's computer.
 
 The notebook does not mount Google Drive, does not display uploaded input tables, removes uploaded input files after processing, downloads outputs as one ZIP archive, and instructs the user to disconnect and delete the runtime when finished.
-
-Use real student data only when this processing arrangement has been approved by the relevant institution.
 
 ## Command-line installation
 
@@ -617,7 +615,7 @@ python -m thesis_allocation match-supervisors \
 ## Important policy summary
 
 - Ordinary current-year students provide three ranked topic-ID fields.
-- Topic ID `9998` is reserved for previous-year carry-over and is used only as preference 1.
+- Topic ID `9998` is reserved for previous-year carry-over.
 - `previous_final_assignments.xlsx` is an optional but recommended fourth input when `9998` students are present.
 - With the previous file, a `9998` student's topic information comes from that previous final assignment, not the current topics file.
 - Without the previous file, the run continues and unresolved `9998` rows are marked `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED`; automatic supervisor matching is skipped for those rows.
@@ -638,9 +636,3 @@ python -m thesis_allocation match-supervisors \
 - Daily supervisor and promotor must normally be different people.
 - Existing valid assignments remain fixed unless explicitly targeted for reassignment or released by annual carry-over validation.
 - Invalid topic IDs, conflicting fixed assignments, and infeasible complete allocations produce explicit errors.
-
-## Determinism and reproducibility
-
-Inputs and candidates are sorted by canonical email or topic ID before optimization.
-
-Given the same inputs, model, configuration, and dependency versions, the optimization is designed to produce the same assignment.
