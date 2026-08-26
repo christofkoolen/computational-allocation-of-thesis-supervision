@@ -41,6 +41,10 @@ class CarryOverTests(unittest.TestCase):
             carried = final.loc["carry@example.org"]
             self.assertEqual(carried["assigned_topic_id"], "old-topic")
             self.assertEqual(carried["assigned_topic"], "Previous-year thesis")
+            self.assertEqual(
+                carried["assigned_topic_description"],
+                "legacy competition regulation thesis",
+            )
             self.assertEqual(carried["assigned_language"], "English")
             self.assertEqual(carried["daily_supervisor_email"], "daily-old@example.org")
             self.assertEqual(carried["promotor_email"], "promotor-old@example.org")
@@ -49,6 +53,10 @@ class CarryOverTests(unittest.TestCase):
 
             new = final.loc["new@example.org"]
             self.assertEqual(new["assigned_topic_id"], "privacy")
+            self.assertEqual(
+                new["assigned_topic_description"],
+                "privacy rights safeguards",
+            )
             self.assertEqual(new["daily_supervisor_email"], "daily-new@example.org")
             self.assertEqual(new["promotor_email"], "promotor-new@example.org")
 
@@ -100,6 +108,159 @@ class CarryOverTests(unittest.TestCase):
             report = json.loads((output / "run_report.json").read_text(encoding="utf-8"))
             self.assertTrue(
                 any("departed@example.org" in warning for warning in report["warnings"])
+            )
+
+    def test_carry_over_ignores_current_topic_with_same_id(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            researchers, topics, preferences, previous = self._write_inputs(root)
+
+            previous_table = pd.read_excel(previous)
+            previous_table.loc[0, "daily_supervisor"] = "Departed Researcher"
+            previous_table.loc[0, "daily_supervisor_email"] = "departed@example.org"
+            previous_table.to_excel(previous, index=False)
+
+            topics_table = pd.read_excel(topics)
+            topics_table = pd.concat(
+                [
+                    topics_table,
+                    pd.DataFrame(
+                        [
+                            {
+                                "topic_id": "old-topic",
+                                "topic_title": "Reused current-year topic",
+                                "topic_description": "privacy rights safeguards",
+                                "submitter_email": "daily-new@example.org",
+                                "capacity": 1,
+                            }
+                        ]
+                    ),
+                ],
+                ignore_index=True,
+            )
+            topics_table.to_excel(topics, index=False)
+            output = root / "output"
+
+            exit_code = main(
+                [
+                    "run",
+                    "--researchers",
+                    str(researchers),
+                    "--topics",
+                    str(topics),
+                    "--preferences",
+                    str(preferences),
+                    "--previous-final-assignments",
+                    str(previous),
+                    "--output-directory",
+                    str(output),
+                    "--skip-scrape",
+                    "--backend",
+                    "tfidf",
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            final = pd.read_excel(output / "final_assignments.xlsx").set_index("email")
+            carried = final.loc["carry@example.org"]
+            self.assertEqual(carried["assigned_topic"], "Previous-year thesis")
+            self.assertEqual(
+                carried["assigned_topic_description"],
+                "legacy competition regulation thesis",
+            )
+            self.assertEqual(carried["daily_supervisor_email"], "daily-old@example.org")
+            self.assertNotEqual(
+                carried["daily_supervisor_email"],
+                "daily-new@example.org",
+            )
+
+    def test_excess_carry_over_capacity_is_reassigned(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            researchers, topics, preferences, previous = self._write_inputs(root)
+
+            researcher_table = pd.read_excel(researchers)
+            researcher_table.loc[
+                researcher_table["email"].eq("daily-old@example.org"),
+                "daily_supervisor_maximum_theses",
+            ] = 2
+            researcher_table.loc[
+                researcher_table["email"].eq("promotor-old@example.org"),
+                "promotor_maximum_theses",
+            ] = 3
+            researcher_table.to_excel(researchers, index=False)
+
+            carry_students = []
+            previous_rows = []
+            for number in (1, 2, 3):
+                email = f"carry{number}@example.org"
+                carry_students.append(
+                    {
+                        "full_name": f"Carry Student {number}",
+                        "email": email,
+                        "preference_1": 9998,
+                        "preference_1_languages": "",
+                        "preference_2": "",
+                        "preference_2_languages": "",
+                        "preference_3": "",
+                        "preference_3_languages": "",
+                    }
+                )
+                previous_rows.append(
+                    {
+                        "full_name": f"Carry Student {number}",
+                        "email": email,
+                        "assigned_topic_id": f"old-topic-{number}",
+                        "assigned_topic": f"Previous thesis {number}",
+                        "assigned_topic_description": "legacy competition regulation thesis",
+                        "assigned_language": "English",
+                        "daily_supervisor": "Daily Old",
+                        "daily_supervisor_email": "daily-old@example.org",
+                        "promotor": "Promotor Old",
+                        "promotor_email": "promotor-old@example.org",
+                    }
+                )
+
+            pd.DataFrame(carry_students).to_excel(preferences, index=False)
+            pd.DataFrame(previous_rows).to_excel(previous, index=False)
+            output = root / "output"
+
+            exit_code = main(
+                [
+                    "run",
+                    "--researchers",
+                    str(researchers),
+                    "--topics",
+                    str(topics),
+                    "--preferences",
+                    str(preferences),
+                    "--previous-final-assignments",
+                    str(previous),
+                    "--output-directory",
+                    str(output),
+                    "--skip-scrape",
+                    "--backend",
+                    "tfidf",
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            final = pd.read_excel(output / "final_assignments.xlsx").set_index("email")
+            self.assertEqual(
+                final.loc["carry1@example.org", "daily_supervisor_email"],
+                "daily-old@example.org",
+            )
+            self.assertEqual(
+                final.loc["carry2@example.org", "daily_supervisor_email"],
+                "daily-old@example.org",
+            )
+            self.assertEqual(
+                final.loc["carry3@example.org", "daily_supervisor_email"],
+                "daily-new@example.org",
+            )
+            report = json.loads((output / "run_report.json").read_text(encoding="utf-8"))
+            self.assertTrue(
+                any("current maximum capacity" in warning for warning in report["warnings"])
             )
 
     def test_previous_record_is_ignored_when_repeat_student_chooses_new_topics(self) -> None:
@@ -184,7 +345,7 @@ class CarryOverTests(unittest.TestCase):
                     "full_name": "Daily Old",
                     "email": "daily-old@example.org",
                     "supervision_languages": "English",
-                    "profile_description": "legacy competition regulation",
+                    "profile_description": "legacy competition regulation thesis",
                     "daily_supervisor_minimum_theses": 0,
                     "daily_supervisor_maximum_theses": 1,
                     "promotor_minimum_theses": 0,
@@ -278,6 +439,7 @@ class CarryOverTests(unittest.TestCase):
                     "email": "carry@example.org",
                     "assigned_topic_id": "old-topic",
                     "assigned_topic": "Previous-year thesis",
+                    "assigned_topic_description": "legacy competition regulation thesis",
                     "assigned_language": "English",
                     "daily_supervisor": "Daily Old",
                     "daily_supervisor_email": "daily-old@example.org",
