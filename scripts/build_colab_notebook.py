@@ -58,17 +58,29 @@ def build_notebook() -> dict[str, object]:
         Skip this section if your researcher, topic, and student-preference files
         are already prepared.
 
-        Students must provide three different exact thesis topic IDs. Topic ID
-        `9999` means a student's own topic and can therefore appear at most once.
-        If `9999` is used, `own_topic_description` must describe that own topic.
-        Because an own topic has no shared topic capacity, ranking `9999` first
-        means it will be selected during topic allocation; ranking it second or
-        third makes it an always-available fallback.
+        Students normally provide three ranked exact thesis topic IDs. Repeated
+        topic IDs are accepted; the earliest occurrence has the lowest preference
+        cost and a repeated choice does not create extra topic capacity.
 
-        In `researchers.xlsx`, `appointment` is descriptive only. Eligibility for
-        daily-supervisor and promotor roles is controlled by the corresponding
-        maximum-capacity columns: a maximum above `0` means eligible and `0` means
-        ineligible. The minimum columns are workload targets, not role categories.
+        Topic ID `9998` is reserved for a previous-year carry-over. A continuing
+        student who wants to keep the previous allocation enters `9998` as
+        `preference_1`; preferences 2 and 3 may then be left blank. The complete
+        allocation must also include the previous `final_assignments` file. The
+        previous topic, selected language, daily supervisor, and promotor are
+        carried forward when the supervisors are still valid in the current
+        researcher file. A departed or currently ineligible supervisor is cleared
+        and reassigned while the topic remains fixed.
+
+        Topic ID `9999` means a student's own topic. If `9999` is used,
+        `own_topic_description` must describe that own topic. Because an own topic
+        has no shared topic capacity, ranking `9999` first means it will be selected
+        during topic allocation.
+
+        In `researchers.xlsx`, `appointment_type` and the other metadata columns are
+        descriptive only. Eligibility for daily-supervisor and promotor roles is
+        controlled by the corresponding maximum-capacity columns: a maximum above
+        `0` means eligible and `0` means ineligible. The minimum columns are workload
+        targets, not role categories.
         '''),
         _code('''
         # @title 1. Download blank input files (optional)
@@ -125,8 +137,15 @@ def build_notebook() -> dict[str, object]:
         ### 2.a Workflow 1: thesis topic and supervision allocation
 
         Use **Complete allocation** for the normal annual allocation. It first
-        allocates thesis topics and then assigns daily supervisors and promotors.
-        Students' three topic preferences are matched by exact topic ID only.
+        separates any `9998` carry-over students, then allocates current-year topic
+        preferences for everyone else, and finally assigns open daily-supervisor and
+        promotor roles.
+
+        Upload `researchers`, `topics`, and `student_preferences` as usual. If one
+        or more students use `9998`, also upload the previous
+        `final_assignments.xlsx` (recommended filename:
+        `previous_final_assignments.xlsx`). A repeat student who wants a new topic
+        simply submits ordinary topic IDs and their previous record is ignored.
         '''),
         _code('''
         # @title 2.a Workflow 1 options
@@ -144,7 +163,9 @@ def build_notebook() -> dict[str, object]:
 
         For **One student**, fill in `student_email`. For **Everyone assigned to a
         departing supervisor**, fill in `departing_researcher_email`. Only the
-        field matching the selected scope is used.
+        field matching the selected scope is used. Carried `9998` topics remain
+        reassignable even when the previous topic is absent from this year's topic
+        file.
         '''),
         _code('''
         # @title 2.b Workflow 2 options
@@ -156,8 +177,10 @@ def build_notebook() -> dict[str, object]:
         _markdown('''
         ## 3. Run the selected workflow
 
-        After choosing the workflow and its options above, run the notebook. You
-        will be asked to upload the three files required for the selected workflow.
+        After choosing the workflow and its options above, run the notebook. For
+        complete allocation, upload the three standard files plus the optional
+        previous final assignments file when carry-over students use `9998`.
+        Reassignment continues to use three files.
         '''),
         _code('''
         # @title 3.a Prepare the allocation program
@@ -262,7 +285,13 @@ def build_notebook() -> dict[str, object]:
         input_directory.mkdir(parents=True)
         output_directory.mkdir(parents=True)
 
-        print("Select the three input files together in the upload window.")
+        if task == "Complete allocation":
+            print(
+                "Select researchers, topics, and student preferences together. "
+                "If any student uses 9998, also select previous_final_assignments."
+            )
+        else:
+            print("Select the previous assignments, researchers, and topics together.")
         previous_directory = Path.cwd()
         os.chdir(input_directory)
         try:
@@ -291,6 +320,10 @@ def build_notebook() -> dict[str, object]:
                 "--output-directory", str(output_directory), "--duplicate-policy", duplicate_policy,
                 *common_options,
             ]
+            if "assignments" in inputs:
+                arguments.extend(
+                    ["--previous-final-assignments", str(inputs["assignments"])]
+                )
             if not retrieve_researcher_profiles:
                 arguments.append("--skip-scrape")
             result_filename = "thesis_allocation_results.zip"
@@ -336,7 +369,11 @@ def build_notebook() -> dict[str, object]:
 
         if task == "Complete allocation":
             report = json.loads((output_directory / "run_report.json").read_text(encoding="utf-8"))
-            print(f"Completed: {report['assigned_students']} student(s), total preference cost {report['preference_cost']}.")
+            print(
+                f"Completed: {report['assigned_students']} student(s), "
+                f"including {report.get('carry_over_students', 0)} carry-over student(s); "
+                f"total preference cost {report['preference_cost']}."
+            )
             for warning in report["warnings"]:
                 print(f"Warning: {warning}")
         else:
