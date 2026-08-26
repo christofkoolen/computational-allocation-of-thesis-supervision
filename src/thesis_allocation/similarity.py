@@ -9,7 +9,7 @@ import numpy as np
 from thesis_allocation.errors import ThesisAllocationError
 
 
-DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+DEFAULT_EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
 
 
 class SimilarityBackend(Protocol):
