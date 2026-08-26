@@ -88,6 +88,7 @@ ASSIGNMENT_ALIASES = {
     "email": ("e-mail", "e-mail address", "student_email"),
     "assigned_topic_id": ("topic_id",),
     "assigned_topic": ("topic_title", "proposed_thesis_topic"),
+    "assigned_topic_description": ("topic_description",),
     "daily_supervisor": ("daily_supervisor_name",),
     "daily_supervisor_email": (),
     "promotor": ("thesis_promotor", "promoter"),
@@ -430,6 +431,9 @@ def normalize_assignments(frame: pd.DataFrame) -> pd.DataFrame:
     result["email"] = result["email"].map(normalize_email)
     result["assigned_topic_id"] = result["assigned_topic_id"].map(normalize_topic_id)
     result["assigned_topic"] = result["assigned_topic"].map(clean_text)
+    result["assigned_topic_description"] = result[
+        "assigned_topic_description"
+    ].map(clean_text)
     result["own_topic_description"] = result["own_topic_description"].map(clean_text)
     for column in (
         "daily_supervisor",

@@ -195,6 +195,22 @@ def _attach_topic_context(
             )
             continue
 
+        assignment_source = clean_text(row.get("topic_assignment_source")).casefold()
+        if assignment_source == "carry_over":
+            title = clean_text(row.get("assigned_topic"))
+            description = clean_text(row.get("assigned_topic_description"))
+            if not title:
+                issues.append(
+                    f"student '{row['email']}': carried assignment requires "
+                    "assigned_topic"
+                )
+                continue
+            result.at[index, "_topic_text"] = " ".join(
+                part for part in (title, description) if part
+            )
+            result.at[index, "_submitter_email"] = ""
+            continue
+
         if reference == OWN_TOPIC_ID:
             description = clean_text(row.get("own_topic_description"))
             if not description:
@@ -205,6 +221,7 @@ def _attach_topic_context(
                 continue
             result.at[index, "assigned_topic_id"] = OWN_TOPIC_ID
             result.at[index, "assigned_topic"] = "Own topic"
+            result.at[index, "assigned_topic_description"] = description
             result.at[index, "_topic_text"] = description
             result.at[index, "_submitter_email"] = ""
             continue
@@ -219,6 +236,7 @@ def _attach_topic_context(
         topic = topics.loc[topic_index]
         result.at[index, "assigned_topic_id"] = topic["topic_id"]
         result.at[index, "assigned_topic"] = topic["topic_title"]
+        result.at[index, "assigned_topic_description"] = topic["topic_description"]
         result.at[index, "_topic_text"] = topic["topic_text"]
         result.at[index, "_submitter_email"] = topic["submitter_email"]
 

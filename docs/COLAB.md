@@ -13,14 +13,21 @@ It does not require a GitHub account or access token.
 
 ## 1. Optional input templates
 
-The first numbered section can generate the three blank input workbooks. Skip
-this section when the files are already prepared.
+The first numbered section can generate the three blank current-year input
+workbooks. Skip this section when the files are already prepared.
 
-The student-preference template contains three required preference columns for
-exact thesis topic IDs. The three IDs do not have to be different. Repeated
-preferences are accepted and do not stop the workflow. If the same topic appears
-more than once, its earliest occurrence has the lowest preference cost. A repeated
-choice does not create extra topic capacity or an additional fallback option.
+The student-preference template contains three preference columns for exact
+thesis topic IDs. For normal current-year allocation, students provide all three.
+The IDs do not have to be different. Repeated preferences are accepted and do
+not stop the workflow. If the same topic appears more than once, its earliest
+occurrence has the lowest preference cost. A repeated choice does not create
+extra topic capacity or an additional fallback option.
+
+Topic ID `9998` is reserved for previous-year carry-over. A continuing student
+who wants to retain the previous thesis allocation enters `9998` as
+`preference_1`; preferences 2 and 3 may then be blank. When at least one student
+uses `9998`, the Complete allocation upload must also include the previous
+`final_assignments` file, normally named `previous_final_assignments.xlsx`.
 
 Topic ID `9999` is reserved for an own topic. When a student selects it,
 `own_topic_description` must contain a short description of that own topic.
@@ -49,14 +56,29 @@ Select the workflow before running the notebook.
 ### 2.a Workflow 1: thesis topic and supervision allocation
 
 Choose **Complete allocation** for the normal annual allocation. Students provide
-their three ranked preferences as exact topic IDs rather than typed titles.
-Review the complete-allocation options before running.
+their ranked preferences as exact topic IDs rather than typed titles. Review the
+complete-allocation options before running.
 
-Repeated topic IDs are accepted. For example, `A, A, B` is valid input. If `A`
-can be assigned, its first occurrence is the effective preference because it has
-the lowest rank cost. If `A` cannot be assigned because its topic capacity is
-exhausted, the repeated `A` does not provide another alternative and `B` remains
-a third-choice fallback.
+For ordinary students, repeated topic IDs are accepted. For example, `A, A, B`
+is valid input. If `A` can be assigned, its first occurrence is the effective
+preference because it has the lowest rank cost. If `A` cannot be assigned because
+its topic capacity is exhausted, the repeated `A` does not provide another
+alternative and `B` remains a third-choice fallback.
+
+For a `9998` student, the notebook first matches the student by email to the
+previous final-assignment file and carries forward the previous topic, topic
+description, assigned language, daily supervisor, and promotor. That student's
+topic is not resolved against the current `topics.xlsx`, even if the old topic ID
+has been reused for a different current-year topic.
+
+Previous supervision is kept only while the researcher is still listed and
+eligible, supports the carried language, and remains within the current maximum
+for that role. If carry-over demand exceeds a researcher's current maximum, the
+excess student's role is cleared and reassigned normally. The carried topic stays
+fixed.
+
+A repeat student who wants a new topic simply submits ordinary current-year topic
+IDs. Their presence in the previous assignment file does not trigger carry-over.
 
 Topic preferences are matched by exact topic ID only. Typed titles, approximate
 titles, and fuzzy matching are not used. The selected supervision language is
@@ -85,14 +107,23 @@ Only the email field corresponding to the selected scope is used. Assignments
 outside the selected target remain fixed. Replacements remain subject to the
 same hard researcher-level supervision-language compatibility rule.
 
+For carried `9998` assignments, reassignment uses the topic information stored in
+the final-assignment row. New runs include `assigned_topic_description`, so the
+previous final file contains the semantic topic text needed for later replacement
+matching. Older files without that field fall back to the stored `assigned_topic`
+title.
+
 ## 3. Run the selected workflow
 
 Select **Runtime → Run all** after choosing and configuring the workflow.
 
 For **Complete allocation**, upload the researcher, topic, and student-preference
-files together when the upload window appears. The notebook allocates thesis
-topics first and then assigns daily supervisors and promotors. It downloads
-`thesis_allocation_results.zip` when the workflow completes.
+files together when the upload window appears. If one or more students use
+`9998`, upload `previous_final_assignments.xlsx` in the same upload window as an
+optional fourth file. The notebook separates carry-over students first, allocates
+current-year topics for everyone else, then assigns any open daily-supervisor and
+promotor roles. It downloads `thesis_allocation_results.zip` when the workflow
+completes.
 
 For **Reassign supervision**, upload the previous final assignments, researcher
 file, and topic file together. The notebook downloads
