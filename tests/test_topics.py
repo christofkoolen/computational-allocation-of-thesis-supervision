@@ -64,6 +64,26 @@ class TopicAllocationTests(unittest.TestCase):
         self.assertEqual(set(result.assignments["assigned_topic_id"]), {"A", "B", "C"})
         self.assertEqual(result.assignments["assigned_cost"].sum(), 5)
 
+    def test_repeated_topic_ids_are_allowed_and_earliest_rank_wins(self) -> None:
+        preferences = pd.DataFrame(
+            [
+                {
+                    "full_name": "Student",
+                    "email": "student@example.org",
+                    "preference_1": "A",
+                    "preference_2": "A",
+                    "preference_3": "B",
+                }
+            ]
+        )
+
+        result = allocate_topics(preferences, self.topics)
+        assignment = result.assignments.iloc[0]
+
+        self.assertEqual(assignment["assigned_topic_id"], "A")
+        self.assertEqual(assignment["assigned_rank"], 1)
+        self.assertEqual(assignment["assigned_cost"], 1)
+
     def test_topic_allocation_carries_selected_supervision_language(self) -> None:
         preferences = pd.DataFrame(
             [
