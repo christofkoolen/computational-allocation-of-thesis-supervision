@@ -49,8 +49,7 @@ def build_notebook() -> dict[str, object]:
 
         **Data notice:** uploaded files are processed in a Google Colab virtual
         machine. This notebook does not mount Google Drive and does not save input
-        data in notebook output. Use real student data only when this processing
-        arrangement has been approved by your institution.
+        data in notebook output.
         '''),
         _markdown('''
         ## 1. Optional: download blank input files
@@ -153,7 +152,7 @@ def build_notebook() -> dict[str, object]:
         '''),
         _code('''
         # @title 2.a Workflow 1 options
-        matching_method = "Semantic matching (recommended)"  # @param ["Semantic matching (recommended)", "Fast lexical matching"]
+        matching_method = "Semantic matching (recommended)"  # @param ["Semantic matching (recommended)", "Lexical matching (fast)"]
         retrieve_researcher_profiles = False  # @param {type:"boolean"}
         allow_partial_results = False  # @param {type:"boolean"}
         allow_same_person_for_both_roles = False  # @param {type:"boolean"}
@@ -389,7 +388,7 @@ def build_notebook() -> dict[str, object]:
 
         print(f"Downloading {result_filename}...")
         files.download(str(result_path))
-        ''', cell_id='run'),
+        ''', cell_id='run', form=True),
         _markdown('''
         ## When finished
 
