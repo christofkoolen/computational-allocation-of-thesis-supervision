@@ -17,16 +17,20 @@ The first numbered section can generate the three blank input workbooks. Skip
 this section when the files are already prepared.
 
 The student-preference template contains three required preference columns for
-three different exact thesis topic IDs. Topic ID `9999` is reserved for an own
-topic, so it can appear at most once. When a student selects it,
-`own_topic_description` must contain a short description that belongs only to
-that `9999` preference.
+exact thesis topic IDs. The three IDs do not have to be different. Repeated
+preferences are accepted and do not stop the workflow. If the same topic appears
+more than once, its earliest occurrence has the lowest preference cost. A repeated
+choice does not create extra topic capacity or an additional fallback option.
+
+Topic ID `9999` is reserved for an own topic. When a student selects it,
+`own_topic_description` must contain a short description of that own topic.
+Repeated `9999` preferences are accepted as well; the earliest occurrence has
+the lowest preference cost.
 
 An own topic does not share an offered-topic capacity. Therefore, if a student
-ranks `9999` first, it is selected during topic allocation. If `9999` is ranked
-second or third, it acts as an always-available fallback when a higher-ranked
-offered topic cannot be assigned. Supervisor and promotor allocation happens
-afterwards and remains subject to researcher eligibility, language, and capacity.
+ranks `9999` first, it is selected during topic allocation. Supervisor and
+promotor allocation happens afterwards and remains subject to researcher
+eligibility, language, and capacity.
 
 The researcher template contains `supervision_languages`, which records the
 languages in which each researcher can supervise. The topic template has no
@@ -44,9 +48,15 @@ Select the workflow before running the notebook.
 
 ### 2.a Workflow 1: thesis topic and supervision allocation
 
-Choose **Complete allocation** for the normal annual allocation. Students must
-provide their top three preferences as exact topic IDs rather than typed titles.
+Choose **Complete allocation** for the normal annual allocation. Students provide
+their three ranked preferences as exact topic IDs rather than typed titles.
 Review the complete-allocation options before running.
+
+Repeated topic IDs are accepted. For example, `A, A, B` is valid input. If `A`
+can be assigned, its first occurrence is the effective preference because it has
+the lowest rank cost. If `A` cannot be assigned because its topic capacity is
+exhausted, the repeated `A` does not provide another alternative and `B` remains
+a third-choice fallback.
 
 Topic preferences are matched by exact topic ID only. Typed titles, approximate
 titles, and fuzzy matching are not used. The selected supervision language is
@@ -87,6 +97,18 @@ topics first and then assigns daily supervisors and promotors. It downloads
 For **Reassign supervision**, upload the previous final assignments, researcher
 file, and topic file together. The notebook downloads
 `thesis_reassignment_results.zip` when finished.
+
+## Semantic matching and GPU use
+
+Production semantic matching uses the default `BAAI/bge-base-en-v1.5` Sentence
+Transformers model. The model compares the assigned topic text with researcher
+profile and publication text.
+
+If a Colab GPU runtime is selected and CUDA is available to PyTorch, Sentence
+Transformers can use the GPU automatically because the allocation code does not
+force a CPU device. The embedding stage can therefore run faster on a GPU.
+Spreadsheet processing, scraping, and the allocation flow algorithms remain
+largely CPU work.
 
 ## Data handling
 
