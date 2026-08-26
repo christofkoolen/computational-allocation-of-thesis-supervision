@@ -35,6 +35,21 @@ makes it an always-available fallback if a higher-ranked offered topic cannot be
 assigned. Daily-supervisor and promotor allocation happens afterwards and remains
 subject to researcher eligibility, supervision language, and capacity constraints.
 
+### Topic capacity
+
+In `topics.xlsx`, the `capacity` column is the maximum number of students who
+may be assigned to that offered thesis topic. If `capacity` is left blank, it
+defaults to `1`. For example, a topic with `capacity = 3` can be assigned to at
+most three students, even when more students rank it as their first choice. The
+topic allocator treats this as a hard constraint and assigns any additional
+students to another ranked preference when a feasible allocation exists.
+
+Topic capacity is separate from supervisor capacity. The `capacity` value in
+`topics.xlsx` limits how many students can receive a topic, while researcher
+workload limits are defined in `researchers.xlsx` by fields such as
+`daily_supervisor_maximum_theses` and `promotor_maximum_theses`. Student-specific
+own topics (`9999`) do not consume or share an offered-topic capacity.
+
 Supervision languages belong to researcher records, not topic records. A
 student's selected supervision language is carried with the topic assignment as
 `assigned_language`. During daily-supervisor and promotor matching,
