@@ -131,6 +131,13 @@ def normalize_topic_id(value: object) -> str:
     return str(value).strip()
 
 
+def carry_over_preference_mask(frame: pd.DataFrame) -> pd.Series:
+    """Return rows where any ranked preference contains the carry-over instruction."""
+
+    preference_columns = [f"preference_{rank}" for rank in (1, 2, 3)]
+    return frame.loc[:, preference_columns].eq(CARRY_OVER_TOPIC_ID).any(axis=1)
+
+
 def normalized_key(value: object) -> str:
     """Normalize free text for exact matching."""
 
@@ -362,24 +369,16 @@ def normalize_preferences(
         ].map(clean_text)
 
     issues.extend(_require_nonempty(result, ("full_name", "email", "preference_1")))
-    carry_over = result["preference_1"].eq(CARRY_OVER_TOPIC_ID)
+    carry_over = carry_over_preference_mask(result)
 
     for index, row in result.iterrows():
         is_carry_over = bool(carry_over.at[index])
-        if CARRY_OVER_TOPIC_ID in {
-            row["preference_2"],
-            row["preference_3"],
-        }:
-            issues.append(
-                f"student '{row['email']}' may use topic ID {CARRY_OVER_TOPIC_ID} "
-                "only as preference_1"
-            )
         if is_carry_over:
             if not allow_carry_over:
                 issues.append(
                     f"student '{row['email']}' selected topic ID "
                     f"{CARRY_OVER_TOPIC_ID}; carry-over is supported only by the "
-                    "complete allocation workflow with previous final assignments"
+                    "complete allocation workflow"
                 )
             continue
         for rank in (2, 3):
