@@ -23,7 +23,7 @@ The Colab notebook runs in the browser and does not require a local Python insta
 For a normal annual allocation:
 
 1. prepare `researchers.xlsx`, `topics.xlsx`, and `student_preferences.xlsx`;
-2. if continuing students use topic ID `9998`, optionally prepare the previous `final_assignments.xlsx` file as `previous_final_assignments.xlsx`;
+2. if continuing students use topic ID `9998` in any preference field, optionally prepare the previous `final_assignments.xlsx` file as `previous_final_assignments.xlsx`;
 3. open the Colab notebook;
 4. choose **Complete allocation**;
 5. select the desired options;
@@ -39,7 +39,7 @@ The notebook can also reassign one student's supervisor or all assignments held 
 A complete run has three main stages:
 
 1. **Researcher enrichment**: optionally retrieve profile and publication text for researchers.
-2. **Topic allocation**: separate `9998` carry-over students, then assign current-year students to their ranked topic IDs while respecting topic capacity.
+2. **Topic allocation**: separate students whose row contains `9998` in any preference field, then assign current-year students to their ranked topic IDs while respecting topic capacity.
 3. **Supervision allocation**: preserve valid carry-over supervision up to current capacities, then assign open daily-supervisor and promotor roles using eligibility rules, workload constraints, topic-submitter priority, and semantic similarity.
 
 Topic allocation and supervision allocation are separate stages. A student first receives or carries forward a topic. The program then finds suitable supervisors for any open supervision roles.
@@ -192,13 +192,13 @@ One row represents one student's submission.
 | --- | --- |
 | `full_name` | Student name |
 | `email` | Unique student identifier |
-| `preference_1` | First-choice topic ID, or `9998` for previous-year carry-over |
+| `preference_1` | First-choice topic ID; if `9998` appears in any preference field, the whole row is treated as carry-over |
 | `preference_1_languages` | Acceptable supervision language or languages for the first choice |
-| `preference_2` | Second-choice topic ID; may be blank when `preference_1 = 9998` |
+| `preference_2` | Second-choice topic ID; `9998` here also means carry-over |
 | `preference_2_languages` | Acceptable supervision language or languages for the second choice |
-| `preference_3` | Third-choice topic ID; may be blank when `preference_1 = 9998` |
+| `preference_3` | Third-choice topic ID; `9998` here also means carry-over |
 | `preference_3_languages` | Acceptable supervision language or languages for the third choice |
-| `own_topic_description` | Required when the student uses topic ID `9999` |
+| `own_topic_description` | Required when the row uses topic ID `9999` and does not contain `9998` |
 
 For ordinary current-year allocation, students provide all three preference fields. The topic IDs do **not** have to be different. Repeated topic IDs are accepted.
 
@@ -222,13 +222,30 @@ By default, if a form export contains multiple rows with the same student email,
 
 Topic ID `9998` means: **continue my previous thesis allocation**.
 
-A continuing student enters:
+A student is treated as carry-over when `9998` appears in **any** of the three preference fields. For example, all of these are carry-over submissions:
 
 ```text
-preference_1 = 9998
+9998 / 9998 / 9998
+9998 / A / B
+A / 9998 / B
+A / B / 9998
 ```
 
-For that student, preferences 2 and 3 may be blank. `9998` is allowed only as preference 1.
+`9998` is an instruction, not a ranked fallback. If it appears anywhere on the row, the student is removed from current-year topic allocation and the other topic choices on that row are ignored. The original submitted preference values are nevertheless retained in the assignment outputs for auditability.
+
+This means that:
+
+```text
+preference_1 = A
+preference_2 = 9998
+preference_3 = B
+```
+
+does **not** mean “try A first, then carry over.” It means “carry over my previous thesis allocation.”
+
+If a form requires all three fields to contain a value, `9998 / 9998 / 9998` is therefore valid and represents one carry-over student.
+
+If a row contains both `9998` and `9999`, `9998` takes precedence and the own-topic instruction is ignored for that annual run.
 
 ### When `previous_final_assignments.xlsx` is available
 
@@ -263,7 +280,7 @@ The supervisor/promotor email fields remain blank so the program does not invent
 
 All other students continue through the normal annual allocation.
 
-A repeat student who wants a new topic simply submits three ordinary topic IDs. Being present in the previous assignment file does not trigger carry-over by itself.
+A repeat student who wants a new topic must submit three ordinary topic IDs with no `9998` in any of the three fields. Being present in the previous assignment file does not trigger carry-over by itself.
 
 See [`docs/CARRY_OVER.md`](docs/CARRY_OVER.md) for the detailed policy.
 
@@ -271,7 +288,7 @@ See [`docs/CARRY_OVER.md`](docs/CARRY_OVER.md) for the detailed policy.
 
 Topic ID `9999` represents a student-specific own topic.
 
-When a student uses `9999`:
+When a student uses `9999` on a row that does not contain `9998`:
 
 - `own_topic_description` is required;
 - it does not consume capacity from any offered topic;
@@ -294,7 +311,7 @@ Preferences are resolved by exact topic ID only.
 
 Repeated IDs simply create repeated ranked routes to the same topic. The earliest occurrence has the lowest cost. Repetition does not increase a topic's capacity and does not create an extra fallback option.
 
-`9998` students are separated before this current-year topic optimization and contribute no preference cost.
+Students with `9998` in any preference field are separated before this current-year topic optimization and contribute no preference cost.
 
 If the selected preference contains one or more supervision languages, the first listed language for the selected occurrence is carried forward as `assigned_language` for the supervision stage.
 
@@ -457,13 +474,13 @@ The full final-assignment workbook is the authoritative allocation record and is
 | --- | --- |
 | `full_name` | Student's name |
 | `email` | Student's email; the canonical unique student identifier |
-| `preference_1` | Student's first-choice topic ID, or `9998` for a carry-over submission |
+| `preference_1` | Student's submitted first-choice topic ID; a carry-over row may have `9998` here or in another preference field |
 | `preference_1_languages` | Language or languages submitted for preference 1 |
-| `preference_2` | Student's second-choice topic ID; may be blank for a `9998` submission |
+| `preference_2` | Student's submitted second-choice topic ID; `9998` here also makes the row carry-over |
 | `preference_2_languages` | Language or languages submitted for preference 2 |
-| `preference_3` | Student's third-choice topic ID; may be blank for a `9998` submission |
+| `preference_3` | Student's submitted third-choice topic ID; `9998` here also makes the row carry-over |
 | `preference_3_languages` | Language or languages submitted for preference 3 |
-| `own_topic_description` | Student's own-topic description when `9999` is used; otherwise normally blank |
+| `own_topic_description` | Student's own-topic description when `9999` is used on a non-carry-over row; otherwise normally blank |
 | `assigned_topic_id` | Topic ID actually allocated or carried forward; unresolved manual-review carry-over rows retain `9998` |
 | `assigned_topic` | Title of the allocated topic, `Own topic` for `9999`, the previous title for resolved `9998`, or the manual-review marker for unresolved `9998` |
 | `assigned_topic_description` | Description of the allocated topic; copied from the current topic, the `9999` own-topic description, the previous final assignment for resolved `9998`, or the manual-review marker when no previous file is supplied |
@@ -511,7 +528,7 @@ The Colab notebook is intended for colleagues who do not normally use Python or 
 
 ### Complete allocation
 
-Choose **Complete allocation** and upload researcher data, topic data, and student preferences. If any student uses `9998`, the previous final assignments are an **optional fourth upload** in the same upload window. When supplied, they are used to resolve and carry the previous thesis allocation forward. When omitted, the notebook still completes the run and marks unresolved `9998` students `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED` for manual follow-up. The notebook separates carry-over students first, allocates current-year topics for everyone else, fills open daily-supervisor and promotor roles for resolvable students, and downloads `thesis_allocation_results.zip`. The ZIP includes both the full `final_assignments.xlsx` and the reduced `final_assignments_shareable.xlsx`.
+Choose **Complete allocation** and upload researcher data, topic data, and student preferences. If any preference field for any student contains `9998`, the previous final assignments are an **optional fourth upload** in the same upload window. When supplied, they are used to resolve and carry the previous thesis allocation forward. When omitted, the notebook still completes the run and marks unresolved `9998` students `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED` for manual follow-up. The notebook separates carry-over students first, allocates current-year topics for everyone else, fills open daily-supervisor and promotor roles for resolvable students, and downloads `thesis_allocation_results.zip`. The ZIP includes both the full `final_assignments.xlsx` and the reduced `final_assignments_shareable.xlsx`.
 
 ### Reassignment
 
@@ -562,7 +579,7 @@ python -m thesis_allocation run \
   --output-directory output
 ```
 
-When `9998` is used and a previous final-assignment file is available, add:
+When `9998` appears in any preference field and a previous final-assignment file is available, add:
 
 ```text
 --previous-final-assignments input/previous_final_assignments.xlsx
@@ -617,15 +634,17 @@ python -m thesis_allocation match-supervisors \
 ## Important policy summary
 
 - Ordinary current-year students provide three ranked topic-ID fields.
-- Topic ID `9998` is reserved for previous-year carry-over and is used only as preference 1.
+- Topic ID `9998` is reserved for previous-year carry-over. If it appears in **any** of the three preference fields, the entire row is treated as carry-over and the other topic choices are ignored for current-year topic allocation.
+- `9998 / 9998 / 9998` is valid and represents one carry-over student.
+- If a row contains both `9998` and `9999`, `9998` takes precedence.
 - `previous_final_assignments.xlsx` is an optional but recommended fourth input when `9998` students are present.
 - With the previous file, a `9998` student's topic information comes from that previous final assignment, not the current topics file.
 - Without the previous file, the run continues and unresolved `9998` rows are marked `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED`; automatic supervisor matching is skipped for those rows.
 - If a previous file is supplied but a `9998` student's email is missing from it, the program raises a validation error.
 - Valid carry-over supervision is preserved only up to current maximum capacities; excess roles are reassigned.
-- Topic ID `9999` is reserved for a student's own topic.
+- Topic ID `9999` is reserved for a student's own topic on non-carry-over rows.
 - Repeated ordinary topic IDs are accepted and do not cause input validation to fail.
-- When the same topic appears more than once, its earliest occurrence has the lowest rank cost.
+- When the same ordinary topic appears more than once, its earliest occurrence has the lowest rank cost.
 - Topic titles are display fields and are not used to resolve ordinary preferences.
 - Offered-topic capacity is a hard constraint.
 - Own topics and carry-over topics do not consume shared current-year offered-topic capacity.
