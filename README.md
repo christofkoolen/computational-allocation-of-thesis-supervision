@@ -53,7 +53,7 @@ Canonical column names are recommended. Selected legacy aliases are still accept
 The Colab notebook can generate blank templates, or they can be created locally with:
 
 ```bash
-thesis-allocation create-templates input
+python -m thesis_allocation create-templates input
 ```
 
 ### 1. `researchers.xlsx`
@@ -326,7 +326,7 @@ The reassignment output includes a change log containing the previous assignee, 
 ### Reassign a departing daily supervisor from the CLI
 
 ```bash
-thesis-allocation reassign \
+python -m thesis_allocation reassign \
   --assignments output/final_assignments.xlsx \
   --topics input/topics.xlsx \
   --researchers output/researchers_enriched.xlsx \
@@ -340,7 +340,7 @@ thesis-allocation reassign \
 ### Reassign one student's promotor from the CLI
 
 ```bash
-thesis-allocation reassign \
+python -m thesis_allocation reassign \
   --assignments output/final_assignments.xlsx \
   --topics input/topics.xlsx \
   --researchers output/researchers_enriched.xlsx \
@@ -441,13 +441,13 @@ python -m pip install -e ".[semantic]"
 Create blank input templates:
 
 ```bash
-thesis-allocation create-templates input
+python -m thesis_allocation create-templates input
 ```
 
 Run the complete pipeline:
 
 ```bash
-thesis-allocation run \
+python -m thesis_allocation run \
   --researchers input/researchers.xlsx \
   --topics input/topics.xlsx \
   --preferences input/student_preferences.xlsx \
@@ -479,7 +479,7 @@ A different Sentence Transformers model can be supplied with:
 ### Enrich researchers
 
 ```bash
-thesis-allocation scrape-researchers \
+python -m thesis_allocation scrape-researchers \
   --researchers input/researchers.xlsx \
   --output output/researchers_enriched.xlsx
 ```
@@ -487,7 +487,7 @@ thesis-allocation scrape-researchers \
 ### Allocate topics only
 
 ```bash
-thesis-allocation allocate-topics \
+python -m thesis_allocation allocate-topics \
   --preferences input/student_preferences.xlsx \
   --topics input/topics.xlsx \
   --output output/topic_assignments.xlsx
@@ -496,7 +496,7 @@ thesis-allocation allocate-topics \
 ### Match supervisors only
 
 ```bash
-thesis-allocation match-supervisors \
+python -m thesis_allocation match-supervisors \
   --assignments output/topic_assignments.xlsx \
   --topics input/topics.xlsx \
   --researchers output/researchers_enriched.xlsx \
