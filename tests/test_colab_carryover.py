@@ -29,9 +29,11 @@ class ColabCarryOverTests(unittest.TestCase):
             if cell["cell_type"] == "markdown"
         )
         self.assertIn("`9998`", markdown)
+        self.assertIn("**any** of the three preference fields", markdown)
+        self.assertIn("`9998 / 9998 / 9998`", markdown)
         self.assertIn("`previous_final_assignments.xlsx`", markdown)
         self.assertIn("previous topic, selected language, daily supervisor, and promotor", markdown)
-        self.assertIn("previous record is ignored", markdown)
+        self.assertIn("no `9998` in any of the three preference fields", markdown)
 
     def test_complete_colab_workflow_accepts_optional_carry_over_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -46,6 +48,9 @@ class ColabCarryOverTests(unittest.TestCase):
                 report = json.loads(archive.read("run_report.json").decode("utf-8"))
 
             carried = final.set_index("email").loc["carry@example.org"]
+            self.assertEqual(carried["preference_1"], "new-topic")
+            self.assertEqual(str(carried["preference_2"]), "9998")
+            self.assertEqual(carried["preference_3"], "new-topic")
             self.assertEqual(carried["assigned_topic_id"], "old-topic")
             self.assertEqual(carried["assigned_topic"], "Previous-year thesis")
             self.assertEqual(carried["assigned_language"], "English")
@@ -54,6 +59,7 @@ class ColabCarryOverTests(unittest.TestCase):
             self.assertEqual(carried["daily_supervisor_assignment_source"], "carry_over")
             self.assertEqual(carried["promotor_assignment_source"], "carry_over")
             self.assertEqual(report["carry_over_students"], 1)
+            self.assertEqual(report["preference_cost"], 0)
 
     def _execute_complete_workflow(
         self,
@@ -155,12 +161,12 @@ class ColabCarryOverTests(unittest.TestCase):
                 {
                     "full_name": "Carry Student",
                     "email": "carry@example.org",
-                    "preference_1": 9998,
-                    "preference_1_languages": "",
-                    "preference_2": "",
+                    "preference_1": "new-topic",
+                    "preference_1_languages": "English",
+                    "preference_2": 9998,
                     "preference_2_languages": "",
-                    "preference_3": "",
-                    "preference_3_languages": "",
+                    "preference_3": "new-topic",
+                    "preference_3_languages": "English",
                 }
             ]
         ).to_excel(directory / "student_preferences.xlsx", index=False)
