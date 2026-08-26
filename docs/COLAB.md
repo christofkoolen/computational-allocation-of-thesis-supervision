@@ -32,11 +32,11 @@ The researcher template contains `supervision_languages`, which records the
 languages in which each researcher can supervise. The topic template has no
 language column because topics themselves do not determine language eligibility.
 
-In `researchers.xlsx`, `appointment` is only a descriptive label. Daily-supervisor
-and promotor eligibility is controlled by the corresponding maximum-capacity
-columns: a maximum above `0` makes the researcher eligible for that role, while
-`0` makes them ineligible. The minimum columns are workload targets rather than
-role categories.
+In `researchers.xlsx`, `appointment_type`, `appointment_percentage`, `comment`,
+and `timestamp` are descriptive only. Daily-supervisor and promotor eligibility
+is controlled by the corresponding maximum-capacity columns: a maximum above
+`0` makes the researcher eligible for that role, while `0` makes them ineligible.
+The minimum columns are workload targets rather than role categories.
 
 ## 2. Choose a workflow
 
@@ -49,9 +49,17 @@ provide their top three preferences as exact topic IDs rather than typed titles.
 Review the complete-allocation options before running.
 
 Topic preferences are matched by exact topic ID only. Typed titles, approximate
-titles, and fuzzy matching are not used. A selected student supervision language
-is checked against researcher `supervision_languages` during daily-supervisor and
-promotor matching.
+titles, and fuzzy matching are not used. The selected supervision language is
+carried forward as `assigned_language` and is a **hard eligibility constraint**
+during daily-supervisor and promotor matching.
+
+For example, if a student receives a topic with `assigned_language = French`, an
+English-only researcher is excluded for that student even if their research
+profile is an excellent semantic match. A researcher who supports French remains
+eligible. Only after incompatible researchers are removed does the optimizer
+consider topic-submitter priority, maximum capacities, minimum workload targets,
+semantic fit, and load balancing. The topic assignment itself is not reconsidered
+because the supervision stage later encounters a language constraint.
 
 ### 2.b Workflow 2: reassignment
 
@@ -64,8 +72,8 @@ role and scope first.
   researcher's email in `departing_researcher_email`.
 
 Only the email field corresponding to the selected scope is used. Assignments
-outside the selected target remain fixed. Replacements remain subject to
-researcher-level supervision-language compatibility.
+outside the selected target remain fixed. Replacements remain subject to the
+same hard researcher-level supervision-language compatibility rule.
 
 ## 3. Run the selected workflow
 

@@ -49,9 +49,17 @@ student, only researchers who support that language receive an assignment edge.
 A blank researcher language field is treated as unrestricted for backwards
 compatibility.
 
+Language compatibility is therefore a hard eligibility filter, not part of the
+semantic score. If a student has `assigned_language = French`, an English-only
+researcher receives no edge for that student even if that researcher is the
+strongest semantic match. A researcher who supports French remains eligible.
+Only among language-compatible candidates does the optimization consider
+submitter priority, capacity, minimum workload targets, semantic similarity, and
+load balancing.
+
 The flow network then accounts for:
 
-- researcher-level supervision-language compatibility;
+- researcher-level supervision-language compatibility as a hard candidate filter;
 - hard maximum capacities;
 - absolute priority for an eligible offered-topic submitter;
 - prioritized minimum workload slots;
@@ -67,6 +75,12 @@ subject to language compatibility, role eligibility, exclusions, the
 distinct-role rule, and the researcher's maximum capacity. If one researcher
 submitted more assigned topics than their available capacity, the secondary
 costs determine which of those topics they supervise.
+
+The topic-allocation stage is not rerun when the supervision stage encounters a
+language bottleneck. If a student has an assigned language but no eligible
+researcher with compatible language and remaining capacity, a complete
+supervision assignment is infeasible. Partial mode may leave that student
+unassigned instead.
 
 Own topics have no topic submitter, so they are matched on language eligibility,
 semantic fit, workload constraints, and capacity.

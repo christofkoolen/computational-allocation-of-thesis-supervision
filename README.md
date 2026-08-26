@@ -36,8 +36,16 @@ assigned. Daily-supervisor and promotor allocation happens afterwards and remain
 subject to researcher eligibility, supervision language, and capacity constraints.
 
 Supervision languages belong to researcher records, not topic records. A
-student's selected supervision language is carried with the topic assignment
-and is enforced when daily supervisors and promotors are matched.
+student's selected supervision language is carried with the topic assignment as
+`assigned_language`. During daily-supervisor and promotor matching,
+`assigned_language` is a hard eligibility constraint: a researcher whose
+`supervision_languages` do not support that language receives no assignment edge,
+regardless of semantic similarity. For example, when `assigned_language` is
+French, an English-only researcher is excluded while a researcher who supports
+French remains eligible. Only after this language filter is applied does the
+optimizer consider topic-submitter priority, capacities, minimum workload targets,
+semantic fit, and load balancing. Topic allocation itself does not backtrack or
+change because a later supervision-language match is difficult or impossible.
 
 No local installation or GitHub authentication is required. Colab processes
 uploaded files on a Google-hosted virtual machine. Use real student data only
@@ -163,7 +171,8 @@ excluded from every replacement generated in that run.
 - Topic ranks cost exactly 1, 2, and 3.
 - Offered-topic capacities are hard constraints; own topics are student-specific and do not consume an offered-topic capacity.
 - Topics do not carry language restrictions.
-- Researcher `supervision_languages` determine language eligibility for daily-supervisor and promotor matching.
+- `assigned_language` is a hard eligibility filter for daily-supervisor and promotor matching; incompatible researchers are excluded before semantic scoring and workload optimization.
+- Researcher `supervision_languages` determine whether a researcher passes that language filter.
 - Existing supervisor assignments are treated as fixed carry-overs and must satisfy the selected supervision language when one is specified.
 - A researcher is eligible for a role when that role's maximum capacity is greater than zero.
 - Minimum supervision targets are prioritized before optional capacity.
