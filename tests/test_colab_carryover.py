@@ -23,10 +23,12 @@ class ColabCarryOverTests(unittest.TestCase):
         cls.notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
 
     def test_notebook_documents_optional_previous_final_assignments(self) -> None:
-        markdown = "\n".join(
-            "".join(cell["source"])
-            for cell in self.notebook["cells"]
-            if cell["cell_type"] == "markdown"
+        markdown = " ".join(
+            "\n".join(
+                "".join(cell["source"])
+                for cell in self.notebook["cells"]
+                if cell["cell_type"] == "markdown"
+            ).split()
         )
         self.assertIn("`9998`", markdown)
         self.assertIn("**any** of the three preference fields", markdown)
@@ -95,7 +97,7 @@ class ColabCarryOverTests(unittest.TestCase):
         google_module.colab = colab_module
         namespace = {
             "task": "Complete allocation",
-            "matching_method": "Fast lexical matching",
+            "matching_method": "Lexical matching (fast)",
             "retrieve_researcher_profiles": False,
             "allow_partial_results": False,
             "allow_same_person_for_both_roles": False,
