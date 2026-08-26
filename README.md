@@ -50,6 +50,14 @@ workload limits are defined in `researchers.xlsx` by fields such as
 `daily_supervisor_maximum_theses` and `promotor_maximum_theses`. Student-specific
 own topics (`9999`) do not consume or share an offered-topic capacity.
 
+If a topic's original submitter has left and is no longer an eligible researcher,
+the topic remains available. Submitter priority simply no longer applies, and the
+daily supervisor and promotor are selected from the remaining eligible researchers
+using the normal global matching rules for language, capacity, minimum workload
+targets, semantic fit, and load balancing. A former employee who remains in
+`researchers.xlsx` with a positive role maximum is still treated as eligible, so
+remove that researcher or set the relevant maximum capacity to `0` for a new run.
+
 Supervision languages belong to researcher records, not topic records. A
 student's selected supervision language is carried with the topic assignment as
 `assigned_language`. During daily-supervisor and promotor matching,
