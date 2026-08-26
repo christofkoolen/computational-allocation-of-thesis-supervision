@@ -1,6 +1,6 @@
 # Computational allocation of thesis supervision
 
-This project helps allocate thesis topics, daily supervisors, and promotors in a reproducible and auditable way.
+This project allocates thesis topics, daily supervisors, and promotors in a reproducible and auditable way.
 
 It is designed for situations where:
 
@@ -11,13 +11,13 @@ It is designed for situations where:
 - otherwise, the topic should be matched to a researcher with relevant expertise;
 - existing assignments may need to be reassigned when someone leaves.
 
-The recommended way to use the project is through the Google Colab notebook. A command-line interface is also available for local or scripted use.
+The recommended way to use the project is through the Google Colab notebook. A Python command-line interface is also available for local or scripted use.
 
 ## Recommended: use Google Colab
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/christofkoolen/computational-allocation-of-thesis-supervision/blob/main/notebooks/Thesis_Allocation_Colab.ipynb)
 
-The Colab notebook runs entirely in the browser and does not require a local Python installation or GitHub authentication.
+The Colab notebook runs in the browser and does not require a local Python installation or GitHub authentication.
 
 For a normal annual allocation:
 
@@ -42,7 +42,7 @@ Topic allocation and supervision allocation are separate stages. A student first
 
 ## Input files
 
-The project accepts `.xlsx`, `.csv`, and `.tsv` files. The standard workflow uses three files:
+The project accepts `.xlsx`, `.csv`, and `.tsv` files. The standard workflow uses:
 
 - `researchers.xlsx`
 - `topics.xlsx`
@@ -148,7 +148,7 @@ and compares that text with researcher expertise derived from:
 profile_description + publication_list
 ```
 
-A concise, substantive topic description therefore gives the semantic matcher more information about the expertise relevant to the thesis.
+A concise, substantive topic description gives the semantic matcher more information about the expertise relevant to the thesis.
 
 The default semantic model is:
 
@@ -156,7 +156,7 @@ The default semantic model is:
 BAAI/bge-base-en-v1.5
 ```
 
-The model converts the topic and researcher text into normalized embeddings and the program compares them using cosine similarity.
+The model converts topic and researcher text into normalized embeddings and the program compares them using cosine similarity.
 
 The current implementation does **not** chunk long researcher text. `profile_description` and `publication_list` are concatenated and sent to the embedding model as one text. Text beyond the model's effective input length can therefore be truncated. Keeping the most informative research description and publication information near the beginning of these fields is useful when the combined text is very long.
 
@@ -164,7 +164,7 @@ The current implementation does **not** chunk long researcher text. `profile_des
 
 The topic remains valid.
 
-The submitter receives special supervision priority only when that person is still an eligible researcher for the relevant role. If the submitter is absent from the eligible candidate pool, the program falls back to the normal matching process using language compatibility, capacity, workload targets, semantic similarity, and load balancing.
+The submitter receives special supervision priority only when that person is still an eligible researcher for the relevant role. If the submitter is absent from the eligible candidate pool, the program falls back to normal matching using language compatibility, capacity, workload targets, semantic similarity, and load balancing.
 
 For a **new allocation**, a former employee should be removed from the researcher file or given a maximum capacity of `0` for roles they may no longer perform. If a former employee remains in `researchers.xlsx` with a positive maximum, the program still considers that person eligible.
 
@@ -186,7 +186,21 @@ One row represents one student's submission.
 | `preference_3_languages` | Acceptable supervision language or languages for the third choice |
 | `own_topic_description` | Required when the student uses topic ID `9999` |
 
-Students must provide three different topic IDs. Topic titles are not used as identifiers and there is no fuzzy title matching.
+Students must provide all three preference fields, but the topic IDs do **not** have to be different. Repeated topic IDs are accepted.
+
+For example:
+
+```text
+preference_1 = A
+preference_2 = A
+preference_3 = B
+```
+
+is valid input. If topic `A` can be assigned, its first occurrence has the lowest rank cost and is therefore the effective choice. If `A` cannot be assigned because its capacity is exhausted, the repeated `A` does not provide an additional alternative, so `B` remains a third-choice fallback.
+
+This permissive behavior is intentional. The program does not reject a student's submission simply because the same topic was selected more than once.
+
+Topic titles are not used as identifiers and there is no fuzzy title matching.
 
 By default, if a form export contains multiple rows with the same student email, the final row is retained. The CLI can instead keep the first row or stop with an error.
 
@@ -197,12 +211,11 @@ Topic ID `9999` represents a student-specific own topic.
 When a student uses `9999`:
 
 - `own_topic_description` is required;
-- `9999` can appear at most once because all three preference IDs must differ;
 - it does not consume capacity from any offered topic;
 - it has no topic submitter;
 - its description is used directly for semantic supervisor matching.
 
-Because an own topic has no shared topic-capacity constraint, ranking `9999` first means it will be selected during topic allocation. Ranking it second or third makes it an always-available fallback when a higher-ranked offered topic cannot be assigned.
+Repeated `9999` preferences are accepted as well. If it occurs more than once, the earliest occurrence has the lowest rank cost. Because an own topic has no shared topic-capacity constraint, a first-choice `9999` will be selected during topic allocation.
 
 Supervisor allocation still has to satisfy researcher eligibility, language, and capacity constraints.
 
@@ -210,13 +223,15 @@ Supervisor allocation still has to satisfy researcher eligibility, language, and
 
 The program models topic allocation as a minimum-cost flow problem.
 
-Each student can receive at most one topic. Each offered topic can receive students only up to its declared capacity. A student's first, second, and third choices have costs of `1`, `2`, and `3` respectively.
+Each student can receive at most one topic. Each offered topic can receive students only up to its declared capacity. A student's first, second, and third preference positions have costs of `1`, `2`, and `3` respectively.
 
 The optimizer finds a complete feasible allocation with the smallest possible total preference cost. In practical terms, it tries to keep students as high as possible in their ranked preferences across the whole cohort rather than processing students one by one.
 
 Preferences are resolved by exact topic ID only.
 
-If the selected preference contains one or more supervision languages, the first listed language is carried forward as `assigned_language` for the supervision stage.
+Repeated IDs simply create repeated ranked routes to the same topic. The earliest occurrence has the lowest cost. Repetition does not increase a topic's capacity and does not create an extra fallback option.
+
+If the selected preference contains one or more supervision languages, the first listed language for the selected occurrence is carried forward as `assigned_language` for the supervision stage.
 
 Topic allocation itself does not reject a topic because a later supervision-language match may be difficult. If the supervision stage later has insufficient language-compatible capacity, the topic allocation is not automatically rerun.
 
@@ -238,17 +253,9 @@ Among feasible candidates, the optimization follows these priorities.
 
 For offered topics, an eligible topic submitter receives absolute assignment priority up to that person's maximum capacity.
 
-Submitter priority still respects:
+Submitter priority still respects supervision-language compatibility, role eligibility, maximum capacity, explicit exclusions, and the distinct-role rule.
 
-- supervision-language compatibility;
-- role eligibility;
-- maximum capacity;
-- explicit exclusions;
-- the rule that daily supervisor and promotor are normally different people.
-
-If the submitter is unavailable or ineligible, the topic is matched normally.
-
-Own topics have no submitter priority.
+If the submitter is unavailable or ineligible, the topic is matched normally. Own topics have no submitter priority.
 
 ### 2. Minimum workload targets
 
@@ -310,12 +317,7 @@ Existing assignments count against the researcher's maximum capacity.
 
 The project supports targeted reassignment without rebuilding every supervision assignment.
 
-You can replace:
-
-- one student's daily supervisor;
-- one student's promotor;
-- every assignment held by one departing daily supervisor;
-- every assignment held by one departing promotor.
+You can replace one student's daily supervisor or promotor, or every assignment held by one departing researcher for a selected role.
 
 The reassignment workflow clears only the selected role for the affected student or students. All other assignments remain fixed and count toward current workload.
 
@@ -357,8 +359,6 @@ The enrichment stage can retrieve visible text from researcher profile and publi
 
 Existing `profile_description` and `publication_list` values are reused unless refresh mode is requested.
 
-The scraper excludes page elements such as scripts, styles, templates, and SVG content.
-
 A failed retrieval does not remove the researcher. The enriched output records retrieval status and the run emits a warning so that the input can be reviewed.
 
 Use `--skip-scrape` in a complete CLI run when no web retrieval should occur.
@@ -385,23 +385,11 @@ The Colab notebook is intended for colleagues who do not normally use Python or 
 
 ### Complete allocation
 
-Choose **Complete allocation** and upload:
-
-- researcher data;
-- topic data;
-- student preferences.
-
-The notebook allocates topics first, then daily supervisors and promotors, and downloads `thesis_allocation_results.zip`.
+Choose **Complete allocation** and upload researcher data, topic data, and student preferences. The notebook allocates topics first, then daily supervisors and promotors, and downloads `thesis_allocation_results.zip`.
 
 ### Reassignment
 
-Choose **Reassign supervision** and upload:
-
-- the previous final assignments;
-- researcher data;
-- topic data.
-
-Choose the role and whether to replace one student's assignment or all assignments held by a departing researcher. The notebook downloads `thesis_reassignment_results.zip`.
+Choose **Reassign supervision** and upload the previous final assignments, researcher data, and topic data. Choose the role and whether to replace one student's assignment or all assignments held by a departing researcher. The notebook downloads `thesis_reassignment_results.zip`.
 
 ### Semantic versus lexical matching
 
@@ -416,13 +404,7 @@ A GPU runtime can accelerate embedding generation when CUDA is available to PyTo
 
 Colab runs on a Google-hosted virtual machine, so uploaded student and researcher data leave the user's computer.
 
-The notebook:
-
-- does not mount Google Drive;
-- does not display uploaded input tables;
-- removes uploaded input files after processing;
-- downloads outputs as one ZIP archive;
-- instructs the user to disconnect and delete the runtime when finished.
+The notebook does not mount Google Drive, does not display uploaded input tables, removes uploaded input files after processing, downloads outputs as one ZIP archive, and instructs the user to disconnect and delete the runtime when finished.
 
 Use real student data only when this processing arrangement has been approved by the relevant institution.
 
@@ -456,22 +438,14 @@ python -m thesis_allocation run \
 
 The first semantic run downloads the default `BAAI/bge-base-en-v1.5` model.
 
-To prohibit researcher-profile retrieval:
+Useful options include:
 
 ```text
 --skip-scrape
-```
-
-For a lightweight offline semantic substitute, use:
-
-```text
 --backend tfidf
-```
-
-A different Sentence Transformers model can be supplied with:
-
-```text
 --model MODEL_NAME
+--allow-partial
+--allow-same-person
 ```
 
 ## Running individual stages
@@ -506,7 +480,9 @@ python -m thesis_allocation match-supervisors \
 
 ## Important policy summary
 
-- Students provide three different exact topic IDs.
+- Students provide three ranked topic-ID fields.
+- Repeated topic IDs are accepted and do not cause input validation to fail.
+- When the same topic appears more than once, its earliest occurrence has the lowest rank cost.
 - Topic titles are display fields and are not used to resolve preferences.
 - Topic ID `9999` is reserved for a student's own topic.
 - Offered-topic capacity is a hard constraint.
