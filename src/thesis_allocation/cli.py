@@ -8,8 +8,10 @@ import sys
 from pathlib import Path
 
 from thesis_allocation.carryover import (
+    MANUAL_REVIEW_SOURCE,
     allocate_annual_topics,
     augment_topics_with_carry_over,
+    finalize_manual_review_assignments,
     restore_carry_over_topic_display,
 )
 from thesis_allocation.errors import ThesisAllocationError
@@ -127,8 +129,9 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument(
         "--previous-final-assignments",
         help=(
-            "Optional previous final assignments. Required when a student uses "
-            "reserved topic ID 9998 to carry over the previous thesis allocation."
+            "Optional previous final assignments used for reserved topic ID 9998. "
+            "If omitted, 9998 students remain in the outputs and are marked for "
+            "manual review instead of stopping the run."
         ),
     )
     run_parser.add_argument("--output-directory", required=True)
@@ -260,11 +263,20 @@ def _command_run(args: argparse.Namespace) -> None:
         duplicate_policy=args.duplicate_policy,
         allow_partial=args.allow_partial,
     )
+    topic_output_assignments = finalize_manual_review_assignments(
+        allocation.assignments
+    )
     topics_path = write_table(
-        allocation.assignments,
+        topic_output_assignments,
         output_directory / "topic_assignments.xlsx",
     )
 
+    matching_targets = {
+        row["email"]
+        for _, row in allocation.assignments.iterrows()
+        if str(row.get("topic_assignment_source", "")).strip().casefold()
+        != MANUAL_REVIEW_SOURCE
+    }
     backend = create_similarity_backend(args.backend, model_name=args.model)
     matching = match_supervisors(
         allocation.assignments,
@@ -273,11 +285,13 @@ def _command_run(args: argparse.Namespace) -> None:
         backend,
         allow_partial=args.allow_partial,
         enforce_distinct_roles=not args.allow_same_person,
+        target_student_emails=matching_targets,
     )
     restored_assignments = restore_carry_over_topic_display(
         matching.assignments,
         allocation.assignments,
     )
+    restored_assignments = finalize_manual_review_assignments(restored_assignments)
     final_path = write_table(
         restored_assignments,
         output_directory / "final_assignments.xlsx",
@@ -303,6 +317,7 @@ def _command_run(args: argparse.Namespace) -> None:
     report = {
         "assigned_students": allocation.assigned_count,
         "carry_over_students": allocation.carry_over_count,
+        "manual_review_students": allocation.manual_review_count,
         "preference_cost": allocation.total_cost,
         "warnings": list(warnings),
         "outputs": {
