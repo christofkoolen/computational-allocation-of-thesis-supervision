@@ -11,6 +11,7 @@ from thesis_allocation.languages import first_compatible_language
 from thesis_allocation.schema import (
     CARRY_OVER_TOPIC_ID,
     OWN_TOPIC_ID,
+    carry_over_preference_mask,
     clean_text,
     normalize_assignments,
     normalize_email,
@@ -265,7 +266,7 @@ def allocate_annual_topics(
     topic_table = normalize_topics(topics)
     researcher_table = normalize_researchers(researchers, require_capacities=True)
 
-    carry_mask = students["preference_1"].eq(CARRY_OVER_TOPIC_ID)
+    carry_mask = carry_over_preference_mask(students)
     carry_students = students.loc[carry_mask].copy()
     new_students = students.loc[~carry_mask].copy()
 
