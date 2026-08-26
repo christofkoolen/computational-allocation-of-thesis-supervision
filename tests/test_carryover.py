@@ -1,0 +1,293 @@
+from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+import pandas as pd
+
+from thesis_allocation.cli import main
+
+
+class CarryOverTests(unittest.TestCase):
+    def test_complete_run_carries_topic_and_supervision_and_reserves_capacity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            researchers, topics, preferences, previous = self._write_inputs(root)
+            output = root / "output"
+
+            exit_code = main(
+                [
+                    "run",
+                    "--researchers",
+                    str(researchers),
+                    "--topics",
+                    str(topics),
+                    "--preferences",
+                    str(preferences),
+                    "--previous-final-assignments",
+                    str(previous),
+                    "--output-directory",
+                    str(output),
+                    "--skip-scrape",
+                    "--backend",
+                    "tfidf",
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            final = pd.read_excel(output / "final_assignments.xlsx").set_index("email")
+            carried = final.loc["carry@example.org"]
+            self.assertEqual(carried["assigned_topic_id"], "old-topic")
+            self.assertEqual(carried["assigned_topic"], "Previous-year thesis")
+            self.assertEqual(carried["assigned_language"], "English")
+            self.assertEqual(carried["daily_supervisor_email"], "daily-old@example.org")
+            self.assertEqual(carried["promotor_email"], "promotor-old@example.org")
+            self.assertEqual(carried["daily_supervisor_assignment_source"], "carry_over")
+            self.assertEqual(carried["promotor_assignment_source"], "carry_over")
+
+            new = final.loc["new@example.org"]
+            self.assertEqual(new["assigned_topic_id"], "privacy")
+            self.assertEqual(new["daily_supervisor_email"], "daily-new@example.org")
+            self.assertEqual(new["promotor_email"], "promotor-new@example.org")
+
+            report = json.loads((output / "run_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["assigned_students"], 2)
+            self.assertEqual(report["carry_over_students"], 1)
+            self.assertEqual(report["preference_cost"], 1)
+
+    def test_missing_previous_supervisor_is_cleared_and_reassigned(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            researchers, topics, preferences, previous = self._write_inputs(root)
+            previous_table = pd.read_excel(previous)
+            previous_table.loc[0, "daily_supervisor"] = "Departed Researcher"
+            previous_table.loc[0, "daily_supervisor_email"] = "departed@example.org"
+            previous_table.to_excel(previous, index=False)
+            output = root / "output"
+
+            exit_code = main(
+                [
+                    "run",
+                    "--researchers",
+                    str(researchers),
+                    "--topics",
+                    str(topics),
+                    "--preferences",
+                    str(preferences),
+                    "--previous-final-assignments",
+                    str(previous),
+                    "--output-directory",
+                    str(output),
+                    "--skip-scrape",
+                    "--backend",
+                    "tfidf",
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            final = pd.read_excel(output / "final_assignments.xlsx").set_index("email")
+            carried = final.loc["carry@example.org"]
+            self.assertEqual(carried["assigned_topic_id"], "old-topic")
+            self.assertEqual(carried["assigned_topic"], "Previous-year thesis")
+            self.assertEqual(carried["promotor_email"], "promotor-old@example.org")
+            self.assertEqual(carried["daily_supervisor_email"], "daily-old@example.org")
+            self.assertNotEqual(
+                carried["daily_supervisor_assignment_source"],
+                "carry_over",
+            )
+            report = json.loads((output / "run_report.json").read_text(encoding="utf-8"))
+            self.assertTrue(
+                any("departed@example.org" in warning for warning in report["warnings"])
+            )
+
+    def test_previous_record_is_ignored_when_repeat_student_chooses_new_topics(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            researchers, topics, preferences, previous = self._write_inputs(root)
+            preference_table = pd.read_excel(preferences)
+            preference_table = preference_table[
+                preference_table["email"].eq("carry@example.org")
+            ].copy()
+            preference_table.loc[:, "preference_1"] = "privacy"
+            preference_table.loc[:, "preference_2"] = "data"
+            preference_table.loc[:, "preference_3"] = "contracts"
+            preference_table.loc[:, "preference_1_languages"] = "English"
+            preference_table.loc[:, "preference_2_languages"] = "English"
+            preference_table.loc[:, "preference_3_languages"] = "English"
+            preference_table.to_excel(preferences, index=False)
+            output = root / "output"
+
+            exit_code = main(
+                [
+                    "run",
+                    "--researchers",
+                    str(researchers),
+                    "--topics",
+                    str(topics),
+                    "--preferences",
+                    str(preferences),
+                    "--previous-final-assignments",
+                    str(previous),
+                    "--output-directory",
+                    str(output),
+                    "--skip-scrape",
+                    "--backend",
+                    "tfidf",
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            final = pd.read_excel(output / "final_assignments.xlsx").iloc[0]
+            self.assertEqual(final["assigned_topic_id"], "privacy")
+            self.assertEqual(final["topic_assignment_source"], "ranked_preference")
+            report = json.loads((output / "run_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["carry_over_students"], 0)
+
+    def test_9998_requires_matching_previous_final_assignment(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            researchers, topics, preferences, previous = self._write_inputs(root)
+            del previous
+            output = root / "output"
+
+            exit_code = main(
+                [
+                    "run",
+                    "--researchers",
+                    str(researchers),
+                    "--topics",
+                    str(topics),
+                    "--preferences",
+                    str(preferences),
+                    "--output-directory",
+                    str(output),
+                    "--skip-scrape",
+                    "--backend",
+                    "tfidf",
+                ]
+            )
+
+            self.assertEqual(exit_code, 2)
+
+    @staticmethod
+    def _write_inputs(root: Path) -> tuple[Path, Path, Path, Path]:
+        researchers = root / "researchers.xlsx"
+        topics = root / "topics.xlsx"
+        preferences = root / "student_preferences.xlsx"
+        previous = root / "previous_final_assignments.xlsx"
+
+        pd.DataFrame(
+            [
+                {
+                    "full_name": "Daily Old",
+                    "email": "daily-old@example.org",
+                    "supervision_languages": "English",
+                    "profile_description": "legacy competition regulation",
+                    "daily_supervisor_minimum_theses": 0,
+                    "daily_supervisor_maximum_theses": 1,
+                    "promotor_minimum_theses": 0,
+                    "promotor_maximum_theses": 0,
+                },
+                {
+                    "full_name": "Promotor Old",
+                    "email": "promotor-old@example.org",
+                    "supervision_languages": "English",
+                    "profile_description": "legacy competition regulation",
+                    "daily_supervisor_minimum_theses": 0,
+                    "daily_supervisor_maximum_theses": 0,
+                    "promotor_minimum_theses": 0,
+                    "promotor_maximum_theses": 1,
+                },
+                {
+                    "full_name": "Daily New",
+                    "email": "daily-new@example.org",
+                    "supervision_languages": "English",
+                    "profile_description": "privacy rights safeguards",
+                    "daily_supervisor_minimum_theses": 0,
+                    "daily_supervisor_maximum_theses": 1,
+                    "promotor_minimum_theses": 0,
+                    "promotor_maximum_theses": 0,
+                },
+                {
+                    "full_name": "Promotor New",
+                    "email": "promotor-new@example.org",
+                    "supervision_languages": "English",
+                    "profile_description": "privacy rights safeguards",
+                    "daily_supervisor_minimum_theses": 0,
+                    "daily_supervisor_maximum_theses": 0,
+                    "promotor_minimum_theses": 0,
+                    "promotor_maximum_theses": 1,
+                },
+            ]
+        ).to_excel(researchers, index=False)
+
+        pd.DataFrame(
+            [
+                {
+                    "topic_id": "privacy",
+                    "topic_title": "Privacy law",
+                    "topic_description": "privacy rights safeguards",
+                    "capacity": 1,
+                },
+                {
+                    "topic_id": "data",
+                    "topic_title": "Data systems",
+                    "topic_description": "data systems",
+                    "capacity": 1,
+                },
+                {
+                    "topic_id": "contracts",
+                    "topic_title": "Contract law",
+                    "topic_description": "commercial contracts",
+                    "capacity": 1,
+                },
+            ]
+        ).to_excel(topics, index=False)
+
+        pd.DataFrame(
+            [
+                {
+                    "full_name": "Carry Student",
+                    "email": "carry@example.org",
+                    "preference_1": 9998,
+                    "preference_1_languages": "",
+                    "preference_2": "",
+                    "preference_2_languages": "",
+                    "preference_3": "",
+                    "preference_3_languages": "",
+                },
+                {
+                    "full_name": "New Student",
+                    "email": "new@example.org",
+                    "preference_1": "privacy",
+                    "preference_1_languages": "English",
+                    "preference_2": "data",
+                    "preference_2_languages": "English",
+                    "preference_3": "contracts",
+                    "preference_3_languages": "English",
+                },
+            ]
+        ).to_excel(preferences, index=False)
+
+        pd.DataFrame(
+            [
+                {
+                    "full_name": "Carry Student",
+                    "email": "carry@example.org",
+                    "assigned_topic_id": "old-topic",
+                    "assigned_topic": "Previous-year thesis",
+                    "assigned_language": "English",
+                    "daily_supervisor": "Daily Old",
+                    "daily_supervisor_email": "daily-old@example.org",
+                    "promotor": "Promotor Old",
+                    "promotor_email": "promotor-old@example.org",
+                }
+            ]
+        ).to_excel(previous, index=False)
+        return researchers, topics, preferences, previous
+
+
+if __name__ == "__main__":
+    unittest.main()

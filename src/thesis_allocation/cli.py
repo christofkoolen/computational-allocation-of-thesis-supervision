@@ -7,6 +7,11 @@ import json
 import sys
 from pathlib import Path
 
+from thesis_allocation.carryover import (
+    allocate_annual_topics,
+    augment_topics_with_carry_over,
+    restore_carry_over_topic_display,
+)
 from thesis_allocation.errors import ThesisAllocationError
 from thesis_allocation.io import read_table, write_table
 from thesis_allocation.matching import match_supervisors
@@ -107,6 +112,13 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--researchers", required=True)
     run_parser.add_argument("--topics", required=True)
     run_parser.add_argument("--preferences", required=True)
+    run_parser.add_argument(
+        "--previous-final-assignments",
+        help=(
+            "Optional previous final assignments. Required when a student uses "
+            "reserved topic ID 9998 to carry over the previous thesis allocation."
+        ),
+    )
     run_parser.add_argument("--output-directory", required=True)
     run_parser.add_argument("--skip-scrape", action="store_true")
     run_parser.add_argument("--refresh-scrape", action="store_true")
@@ -182,15 +194,18 @@ def _command_allocate(args: argparse.Namespace) -> None:
 
 def _command_match(args: argparse.Namespace) -> None:
     backend = create_similarity_backend(args.backend, model_name=args.model)
+    assignments = read_table(args.assignments)
+    topics = augment_topics_with_carry_over(assignments, read_table(args.topics))
     result = match_supervisors(
-        read_table(args.assignments),
+        assignments,
         read_table(args.researchers),
-        read_table(args.topics),
+        topics,
         backend,
         allow_partial=args.allow_partial,
         enforce_distinct_roles=not args.allow_same_person,
     )
-    assignment_path = write_table(result.assignments, args.output)
+    restored = restore_carry_over_topic_display(result.assignments, assignments)
+    assignment_path = write_table(restored, args.output)
     summary_path = write_table(result.summary, args.summary_output)
     _print_warnings(result.warnings)
     print(assignment_path)
@@ -220,9 +235,16 @@ def _command_run(args: argparse.Namespace) -> None:
     )
 
     topic_table = read_table(args.topics)
-    allocation = allocate_topics(
+    previous_assignments = (
+        read_table(args.previous_final_assignments)
+        if args.previous_final_assignments
+        else None
+    )
+    allocation = allocate_annual_topics(
         read_table(args.preferences),
         topic_table,
+        researcher_table,
+        previous_assignments,
         duplicate_policy=args.duplicate_policy,
         allow_partial=args.allow_partial,
     )
@@ -235,13 +257,17 @@ def _command_run(args: argparse.Namespace) -> None:
     matching = match_supervisors(
         allocation.assignments,
         researcher_table,
-        topic_table,
+        allocation.matching_topics,
         backend,
         allow_partial=args.allow_partial,
         enforce_distinct_roles=not args.allow_same_person,
     )
-    final_path = write_table(
+    restored_assignments = restore_carry_over_topic_display(
         matching.assignments,
+        allocation.assignments,
+    )
+    final_path = write_table(
+        restored_assignments,
         output_directory / "final_assignments.xlsx",
     )
     summary_path = write_table(
@@ -260,6 +286,7 @@ def _command_run(args: argparse.Namespace) -> None:
     )
     report = {
         "assigned_students": allocation.assigned_count,
+        "carry_over_students": allocation.carry_over_count,
         "preference_cost": allocation.total_cost,
         "warnings": list(warnings),
         "outputs": {
