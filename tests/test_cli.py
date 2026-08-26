@@ -22,6 +22,11 @@ class CliTests(unittest.TestCase):
             topics = pd.read_excel(Path(directory) / "topics.xlsx")
             preferences = pd.read_excel(Path(directory) / "student_preferences.xlsx")
 
+            self.assertIn("appointment_type", researchers.columns)
+            self.assertIn("appointment_percentage", researchers.columns)
+            self.assertIn("comment", researchers.columns)
+            self.assertIn("timestamp", researchers.columns)
+            self.assertNotIn("appointment", researchers.columns)
             self.assertIn("supervision_languages", researchers.columns)
             self.assertNotIn("supervision_languages", topics.columns)
             self.assertIn("own_topic_description", preferences.columns)
