@@ -82,10 +82,29 @@ The legacy column names `topic_1`, `topic_2`, `topic_3`, and
 `topic_1_language` through `topic_3_language` are accepted, but their values
 must still be topic IDs.
 
-Topic allocation itself does not reject a topic because of language. The
-selected supervision language is written to `assigned_language` and is then
-used to filter eligible daily supervisors and promotors according to each
-researcher's `supervision_languages`.
+Topic allocation itself does not reject a topic because of language. The first
+listed supervision language for the selected preference is written to
+`assigned_language`. That value is then a **hard eligibility constraint** during
+daily-supervisor and promotor matching. A researcher whose
+`supervision_languages` do not support the student's `assigned_language` is
+excluded from that student's candidate set before semantic similarity, workload,
+capacity, or topic-submitter priority are considered.
+
+For example:
+
+| Student | Assigned topic | Assigned language | Daily-supervisor candidate | Candidate languages | Eligible? |
+| --- | --- | --- | --- | --- | --- |
+| Student A | Competition law | French | Excellent researcher | English | **No** |
+| Student A | Competition law | French | Good researcher | French, English | **Yes** |
+
+The English-only researcher receives no assignment edge for Student A, even if
+their semantic match to the topic is excellent. Among the remaining
+French-compatible candidates, the optimizer then considers topic-submitter
+priority, hard maximum capacities, minimum workload targets, semantic fit, and
+load balancing. Topic allocation does not go back and choose another topic when
+the subsequent supervision stage has too little language-compatible capacity. A
+complete run therefore becomes infeasible if no compatible supervision assignment
+can be made, unless partial results are explicitly allowed.
 
 When a student chooses `9999`, that choice is treated as that student's own,
 unique thesis topic. It is not constrained by an offered-topic capacity. The
