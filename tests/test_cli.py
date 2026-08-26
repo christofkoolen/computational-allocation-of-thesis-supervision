@@ -169,6 +169,7 @@ class CliTests(unittest.TestCase):
                 "researchers_enriched.xlsx",
                 "topic_assignments.xlsx",
                 "final_assignments.xlsx",
+                "final_assignments_shareable.xlsx",
                 "supervisor_summary.xlsx",
                 "run_report.json",
             }
@@ -180,6 +181,29 @@ class CliTests(unittest.TestCase):
             self.assertEqual(final.iloc[0]["daily_supervisor_email"], "alice@example.org")
             self.assertEqual(final.iloc[0]["promotor_email"], "bob@example.org")
             self.assertEqual(final.iloc[0]["assigned_language"], "English")
+
+            shareable = pd.read_excel(
+                output_directory / "final_assignments_shareable.xlsx"
+            )
+            self.assertEqual(
+                list(shareable.columns),
+                [
+                    "full_name",
+                    "email",
+                    "assigned_topic",
+                    "assigned_language",
+                    "daily_supervisor",
+                    "daily_supervisor_email",
+                    "promotor",
+                    "promotor_email",
+                ],
+            )
+            self.assertEqual(shareable.iloc[0]["assigned_topic"], "Privacy law")
+            self.assertEqual(
+                shareable.iloc[0]["daily_supervisor_email"],
+                "alice@example.org",
+            )
+            self.assertEqual(shareable.iloc[0]["promotor_email"], "bob@example.org")
 
 
 if __name__ == "__main__":
