@@ -8,19 +8,46 @@ carry-over mechanism for continuing students.
 Topic ID `9998` is reserved for a student who wants to continue the thesis
 allocation from the previous academic year.
 
-The student enters:
+A student is treated as carry-over when `9998` appears in **any** of the three
+ranked topic fields:
 
 ```text
 preference_1 = 9998
 ```
 
-For a `9998` submission, `preference_2` and `preference_3` may be left blank.
-Topic ID `9998` may not be used as preference 2 or preference 3, and it must not
-appear in `topics.xlsx`.
+or, for example:
 
-A repeat student who does not want to carry over the previous allocation simply
-submits ordinary topic IDs. The student's presence in the previous assignment
-file does not trigger carry-over by itself.
+```text
+preference_1 = current-topic-A
+preference_2 = 9998
+preference_3 = current-topic-B
+```
+
+The position of `9998` does not give it a rank. It is an instruction that
+overrides the current-year ranked-topic choices on that row. Once `9998` appears
+in any preference field, the whole student row is handled as carry-over and the
+other submitted topic choices are ignored for current-year topic allocation.
+The submitted preference fields themselves remain unchanged in the generated
+assignment files for auditability.
+
+If a form requires all three topic fields to contain a value, the student may
+enter:
+
+```text
+preference_1 = 9998
+preference_2 = 9998
+preference_3 = 9998
+```
+
+This is valid and represents **one** carry-over student, not three carry-over
+requests.
+
+Topic ID `9998` must not appear in `topics.xlsx`.
+
+A repeat student who does not want to carry over the previous allocation must
+submit ordinary topic IDs without `9998` in any of the three preference fields.
+The student's presence in the previous assignment file does not trigger
+carry-over by itself.
 
 ## Optional fourth input file
 
@@ -111,7 +138,7 @@ topics and does not need to appear in the current `topics.xlsx` file.
 
 The preference cost reported for the annual optimizer concerns the students who
 participate in the current-year ranked-topic allocation. A `9998` carry-over does
-not add a rank cost.
+not add a rank cost, regardless of which preference field contains `9998`.
 
 ## Previous daily supervisor and promotor
 
@@ -179,10 +206,14 @@ The reserved IDs have different meanings:
 | `9999` | Student-specific new own topic |
 | other ID | Current-year offered topic preference |
 
+If a row contains both `9998` and `9999`, `9998` wins: the row is treated as
+carry-over and the own-topic instruction is ignored for the current annual run.
+
 A resolved `9998` student uses the previous final assignment as the authoritative
 topic record. If that file is not available, the row is retained for manual
 review rather than being automatically inferred. A `9999` student creates a new
-own topic and must provide `own_topic_description`.
+own topic and must provide `own_topic_description` only when the row does not
+contain `9998`.
 
 ## Google Colab flow
 
@@ -190,7 +221,7 @@ In **Complete allocation**:
 
 1. upload `researchers`, `topics`, and `student_preferences`;
 2. if available, also upload `previous_final_assignments` when students use
-   `9998`;
+   `9998` in any preference field;
 3. the notebook separates carry-over students first;
 4. when a matching previous row exists, its topic information is used directly
    rather than the current `topics.xlsx`;
