@@ -62,19 +62,21 @@ def build_notebook() -> dict[str, object]:
         topic IDs are accepted; the earliest occurrence has the lowest preference
         cost and a repeated choice does not create extra topic capacity.
 
-        Topic ID `9998` is reserved for a previous-year carry-over. A continuing
-        student who wants to keep the previous allocation enters `9998` as
-        `preference_1`; preferences 2 and 3 may then be left blank. The complete
-        allocation must also include the previous `final_assignments` file. The
-        previous topic, selected language, daily supervisor, and promotor are
-        carried forward when the supervisors are still valid in the current
-        researcher file. A departed or currently ineligible supervisor is cleared
-        and reassigned while the topic remains fixed.
+        Topic ID `9998` is reserved for a previous-year carry-over. If `9998`
+        appears in **any** of the three preference fields, the entire student row
+        is treated as carry-over and the other topic choices on that row are
+        ignored for current-year topic allocation. If the form requires all three
+        fields, `9998 / 9998 / 9998` is valid and represents one carry-over
+        student. The previous `final_assignments` file is an optional fourth input.
+        When it is supplied, the previous topic, selected language, daily
+        supervisor, and promotor are carried forward when valid. When it is not
+        supplied, the run still completes and the unresolved carry-over row is
+        marked `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED`.
 
-        Topic ID `9999` means a student's own topic. If `9999` is used,
-        `own_topic_description` must describe that own topic. Because an own topic
-        has no shared topic capacity, ranking `9999` first means it will be selected
-        during topic allocation.
+        Topic ID `9999` means a student's own topic on a row that does not contain
+        `9998`. If `9999` is used, `own_topic_description` must describe that own
+        topic. Because an own topic has no shared topic capacity, ranking `9999`
+        first means it will be selected during topic allocation.
 
         In `researchers.xlsx`, `appointment_type` and the other metadata columns are
         descriptive only. Eligibility for daily-supervisor and promotor roles is
@@ -137,15 +139,17 @@ def build_notebook() -> dict[str, object]:
         ### 2.a Workflow 1: thesis topic and supervision allocation
 
         Use **Complete allocation** for the normal annual allocation. It first
-        separates any `9998` carry-over students, then allocates current-year topic
-        preferences for everyone else, and finally assigns open daily-supervisor and
-        promotor roles.
+        separates any student whose three preference fields contain `9998`, then
+        allocates current-year topic preferences for everyone else, and finally
+        assigns open daily-supervisor and promotor roles.
 
         Upload `researchers`, `topics`, and `student_preferences` as usual. If one
-        or more students use `9998`, also upload the previous
-        `final_assignments.xlsx` (recommended filename:
-        `previous_final_assignments.xlsx`). A repeat student who wants a new topic
-        simply submits ordinary topic IDs and their previous record is ignored.
+        or more students use `9998` in any preference field, the previous
+        `final_assignments.xlsx` is an optional fourth upload (recommended filename:
+        `previous_final_assignments.xlsx`). When that file is unavailable, the run
+        continues and unresolved carry-over students are marked for manual review.
+        A repeat student who wants a new topic must submit ordinary topic IDs with
+        no `9998` in any of the three preference fields.
         '''),
         _code('''
         # @title 2.a Workflow 1 options
@@ -179,7 +183,7 @@ def build_notebook() -> dict[str, object]:
 
         After choosing the workflow and its options above, run the notebook. For
         complete allocation, upload the three standard files plus the optional
-        previous final assignments file when carry-over students use `9998`.
+        previous final assignments file when available for carry-over students.
         Reassignment continues to use three files.
         '''),
         _code('''
@@ -288,7 +292,8 @@ def build_notebook() -> dict[str, object]:
         if task == "Complete allocation":
             print(
                 "Select researchers, topics, and student preferences together. "
-                "If any student uses 9998, also select previous_final_assignments."
+                "If any preference contains 9998, you may also select "
+                "previous_final_assignments when it is available."
             )
         else:
             print("Select the previous assignments, researchers, and topics together.")
@@ -371,7 +376,8 @@ def build_notebook() -> dict[str, object]:
             report = json.loads((output_directory / "run_report.json").read_text(encoding="utf-8"))
             print(
                 f"Completed: {report['assigned_students']} student(s), "
-                f"including {report.get('carry_over_students', 0)} carry-over student(s); "
+                f"including {report.get('carry_over_students', 0)} carry-over student(s) "
+                f"and {report.get('manual_review_students', 0)} manual-review row(s); "
                 f"total preference cost {report['preference_cost']}."
             )
             for warning in report["warnings"]:
