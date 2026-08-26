@@ -142,6 +142,41 @@ def _resolve_carry_over_role(
     return candidate["full_name"], candidate["email"], None
 
 
+def _release_excess_carry_over_capacity(
+    assignments: pd.DataFrame,
+    researchers: pd.DataFrame,
+) -> tuple[pd.DataFrame, list[str]]:
+    """Keep carry-over roles only up to each researcher's current maximum."""
+
+    if assignments.empty:
+        return assignments, []
+
+    result = assignments.copy()
+    researcher_table = researchers.set_index("email")
+    warnings: list[str] = []
+    for spec in ROLE_COLUMNS.values():
+        assigned_emails = result[spec["email"]].map(normalize_email)
+        for researcher_email in sorted(
+            email for email in assigned_emails.unique() if email
+        ):
+            indices = result.index[assigned_emails.eq(researcher_email)].tolist()
+            maximum = int(researcher_table.at[researcher_email, spec["maximum"]])
+            if len(indices) <= maximum:
+                continue
+            for index in indices[maximum:]:
+                student_email = result.at[index, "email"]
+                result.at[index, spec["name"]] = ""
+                result.at[index, spec["email"]] = ""
+                result.at[index, spec["score"]] = pd.NA
+                result.at[index, spec["source"]] = ""
+                warnings.append(
+                    f"Carry-over student '{student_email}': previous "
+                    f"{spec['label'].casefold()} '{researcher_email}' exceeds that "
+                    "researcher's current maximum capacity and will be reassigned"
+                )
+    return result, warnings
+
+
 def allocate_annual_topics(
     preferences: pd.DataFrame,
     topics: pd.DataFrame,
@@ -227,12 +262,20 @@ def allocate_annual_topics(
                 continue
 
             assigned_language = clean_text(previous.get("assigned_language"))
+            previous_description = clean_text(
+                previous.get("assigned_topic_description")
+            )
+            previous_own_description = clean_text(
+                previous.get("own_topic_description")
+            )
+            if not previous_description and previous_topic_id == OWN_TOPIC_ID:
+                previous_description = previous_own_description
+
             row = student.to_dict()
             row["assigned_topic_id"] = previous_topic_id
             row["assigned_topic"] = previous_topic_title
-            row["own_topic_description"] = clean_text(
-                previous.get("own_topic_description")
-            )
+            row["assigned_topic_description"] = previous_description
+            row["own_topic_description"] = previous_own_description
             row["assigned_rank"] = pd.NA
             row["assigned_cost"] = pd.NA
             row["assigned_language"] = assigned_language
@@ -259,6 +302,12 @@ def allocate_annual_topics(
             raise InputValidationError(issues)
 
     carry_assignments = pd.DataFrame(carry_rows)
+    carry_assignments, capacity_warnings = _release_excess_carry_over_capacity(
+        carry_assignments,
+        researcher_table,
+    )
+    warnings.extend(capacity_warnings)
+
     parts = [frame for frame in (new_assignments, carry_assignments) if not frame.empty]
     if parts:
         combined = pd.concat(parts, ignore_index=True, sort=False)
@@ -282,7 +331,7 @@ def augment_topics_with_carry_over(
     assignments: pd.DataFrame,
     topics: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Add internal topic rows so carried topics need not exist in this year's file."""
+    """Add internal topic rows for compatibility with older matching paths."""
 
     topic_table = normalize_topics(topics)
     assignment_table = normalize_assignments(assignments)
@@ -340,7 +389,7 @@ def restore_carry_over_topic_display(
     assignments: pd.DataFrame,
     original_assignments: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Restore the previous topic title after internal synthetic-topic matching."""
+    """Restore previous topic fields after carry-over supervision matching."""
 
     result = assignments.copy()
     original = normalize_assignments(original_assignments)
@@ -362,5 +411,8 @@ def restore_carry_over_topic_display(
         source = carry_by_email.loc[email]
         result.at[index, "assigned_topic_id"] = source["assigned_topic_id"]
         result.at[index, "assigned_topic"] = source["assigned_topic"]
+        result.at[index, "assigned_topic_description"] = source[
+            "assigned_topic_description"
+        ]
         result.at[index, "own_topic_description"] = source["own_topic_description"]
     return result
