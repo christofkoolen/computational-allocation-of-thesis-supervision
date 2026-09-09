@@ -1,4 +1,4 @@
-"""Normalize the branching Microsoft Forms thesis submission export."""
+"""Normalize the branching student-preference submission table."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ ALLOCATION_PATHS = ("ranked", "self_proposed", "carry_over")
 
 
 def is_forms_export(frame: pd.DataFrame) -> bool:
-    """Return whether a table uses the dedicated Microsoft Forms contract."""
+    """Return whether a table uses the branching preference contract."""
 
     return FORM_MARKER_COLUMNS.issubset(
         {clean_text(column).casefold() for column in frame.columns}
@@ -58,7 +58,7 @@ def normalize_forms_submissions(
     *,
     duplicate_policy: str = "keep-last",
 ) -> pd.DataFrame:
-    """Validate a Forms export and return one row per thesis group.
+    """Validate branching preferences and return one row per thesis group.
 
     A dual submission stays one allocation unit. Member details are retained in
     separate primary and partner columns so the final result can be expanded to
@@ -71,7 +71,7 @@ def normalize_forms_submissions(
     result = frame.copy()
     result.columns = [clean_text(column) for column in result.columns]
     if result.empty:
-        raise InputValidationError("Microsoft Forms export contains no responses")
+        raise InputValidationError("student_preferences contains no submissions")
     required_columns = {
         "full_name",
         "email",
@@ -82,7 +82,7 @@ def normalize_forms_submissions(
     missing = sorted(required_columns - set(result.columns))
     if missing:
         raise InputValidationError(
-            "Microsoft Forms export is missing required column(s): "
+            "student_preferences is missing required column(s): "
             + ", ".join(missing)
         )
 

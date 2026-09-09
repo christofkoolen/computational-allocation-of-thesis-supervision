@@ -10,7 +10,7 @@ A failed request does not remove a researcher. The output records a status for
 each retrieval and emits a warning, allowing the input to be corrected and run
 again.
 
-## 2. Microsoft Forms group allocation
+## 2. Branching student-preference group allocation
 
 The recommended Forms workflow uses one mixed-integer optimization model for
 topic, language, daily-supervisor, and promotor decisions. An individual is one

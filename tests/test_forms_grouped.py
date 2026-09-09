@@ -393,7 +393,7 @@ class GroupedAllocationTests(unittest.TestCase):
                 (root / "output" / "run_report.json").read_text(encoding="utf-8")
             )
             self.assertEqual(final.iloc[0]["assigned_topic_id"], "A")
-            self.assertEqual(report["input_format"], "microsoft_forms")
+            self.assertEqual(report["input_format"], "branching_student_preferences")
             self.assertEqual(report["assigned_students"], 1)
             self.assertEqual(report["assigned_theses"], 1)
 

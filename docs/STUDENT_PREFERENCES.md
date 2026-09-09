@@ -1,8 +1,7 @@
-# Microsoft Forms submission export
+# Student preference input
 
-The recommended annual input is the `.xlsx` response export downloaded directly
-from Microsoft Forms. Upload it alongside `researchers.xlsx` and `topics.xlsx`.
-The program detects the file from its columns, so its filename does not matter.
+The third annual input file is `student_preferences.xlsx`. Upload it alongside
+`researchers.xlsx` and `topics.xlsx`.
 
 ## Common fields
 
@@ -16,9 +15,7 @@ Every response requires:
 | `thesis_type` | Individual or dual thesis answer |
 | `thesis_allocation_status` | Ranked, self-proposed, or carry-over route |
 
-The custom `full_name` and `email` fields are authoritative. Microsoft Forms
-metadata such as `Name` and `Email` remains in the full output for auditing but
-is not used as the student identity.
+The `full_name` and `email` fields are authoritative student identifiers.
 
 ## Dual thesis submissions
 
@@ -31,9 +28,9 @@ For a dual thesis, the response also requires:
 | `partner_student_number` | Second student's student number |
 | `dual_thesis_confirmation` | Confirmation that both students agreed |
 
-One partner submits the form for the pair. The other partner must not submit a
-second response. The program rejects any student email that appears in more than
-one thesis group.
+One partner submits the preference row for the pair. The other partner must not
+submit a second row. The program rejects any student email that appears in more
+than one thesis group.
 
 A pair is one thesis for capacity purposes:
 
@@ -85,9 +82,6 @@ The proposed topic is fixed and does not consume capacity from `topics.xlsx`.
 Its description is used directly for supervisor matching. It still requires a
 feasible daily supervisor and promotor in one of the submitted languages.
 
-New Forms submissions do not use topic ID `9999`. Legacy canonical preference
-files using `9999` remain supported during the transition.
-
 ## Carry-over topic
 
 The carry-over branch requires:
@@ -124,11 +118,11 @@ The final assignment output records:
 
 | Column | Purpose |
 | --- | --- |
-| `submitted_daily_supervisor_email` | Exact daily-supervisor value entered in the form |
+| `submitted_daily_supervisor_email` | Exact submitted daily-supervisor value |
 | `daily_supervisor_email` | Resolved and ultimately assigned researcher email |
 | `daily_supervisor_email_resolution` | `exact` or `fuzzy_match` |
 | `daily_supervisor_email_match_score` | Similarity score used for audit |
-| `submitted_thesis_promotor_email` | Exact promotor value entered in the form |
+| `submitted_thesis_promotor_email` | Exact submitted promotor value |
 | `thesis_promotor_email` | Resolved submitted promotor email |
 | `thesis_promotor_email_resolution` | `exact` or `fuzzy_match` |
 | `thesis_promotor_email_match_score` | Similarity score used for audit |
@@ -138,13 +132,9 @@ After identification, ordinary eligibility rules still apply. A confidently
 identified researcher who is ineligible, language-incompatible, or beyond their
 maximum capacity is reopened for assignment with a warning.
 
-New Forms submissions do not use topic ID `9998` and do not require a previous
-final-assignment file. Legacy canonical preference files using `9998` remain
-supported during the transition.
-
 ## Optimization order
 
-The Forms workflow uses lexicographic priorities:
+The allocation workflow uses lexicographic priorities:
 
 1. produce a complete allocation, unless partial results were explicitly
    allowed;
