@@ -10,12 +10,13 @@ Every response requires:
 | Column | Meaning |
 | --- | --- |
 | `full_name` | Student name used in allocation outputs |
-| `email` | Unique student identifier |
+| `email2` | Unique student identifier; used instead of any automatically recorded account-email column |
 | `student_number` | Student number retained for auditing |
 | `thesis_type` | Individual or dual thesis answer |
 | `thesis_allocation_status` | Ranked, self-proposed, or carry-over route |
 
-The `full_name` and `email` fields are authoritative student identifiers.
+The `full_name` and `email2` fields are authoritative student identifiers. The
+normalized allocation outputs continue to call this field `email`.
 
 ## Dual thesis submissions
 
