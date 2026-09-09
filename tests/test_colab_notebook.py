@@ -55,7 +55,7 @@ class ColabNotebookTests(unittest.TestCase):
         self.assertLess(workflow_two, third)
         self.assertIn("skip section 1", markdown.casefold())
 
-    def test_notebook_explains_own_topic_and_reassignment_email_fields(self) -> None:
+    def test_notebook_uses_current_three_file_wording(self) -> None:
         markdown = " ".join(
             "\n".join(
                 "".join(cell["source"])
@@ -63,7 +63,12 @@ class ColabNotebookTests(unittest.TestCase):
                 if cell["cell_type"] == "markdown"
             ).split()
         )
-        self.assertIn("ranking `9999` first", markdown)
+        self.assertIn("1. `researchers.xlsx`", markdown)
+        self.assertIn("2. `topics.xlsx`", markdown)
+        self.assertIn("3. `student_preferences.xlsx`", markdown)
+        self.assertNotIn("9998", markdown)
+        self.assertNotIn("9999", markdown)
+        self.assertNotIn("Microsoft Forms", markdown)
         self.assertIn("`student_email`", markdown)
         self.assertIn("`departing_researcher_email`", markdown)
 
@@ -78,6 +83,11 @@ class ColabNotebookTests(unittest.TestCase):
         topic_block = remainder.split('"student_preferences.xlsx":', maxsplit=1)[0]
         self.assertIn('"supervision_languages"', researcher_block)
         self.assertNotIn('"supervision_languages"', topic_block)
+        self.assertIn('"thesis_type"', remainder)
+        self.assertIn('"thesis_allocation_status"', remainder)
+        self.assertIn('"topic_preference_1"', remainder)
+        self.assertIn('"self_proposed_thesis_title"', remainder)
+        self.assertIn('"carry_over_thesis_topic"', remainder)
 
     def test_notebook_contains_no_saved_outputs_and_code_compiles(self) -> None:
         code_cells = [

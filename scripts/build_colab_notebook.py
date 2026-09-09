@@ -54,28 +54,15 @@ def build_notebook() -> dict[str, object]:
         _markdown('''
         ## 1. Optional: download blank input files
 
-        Skip this section if your researcher, topic, and student-preference files
-        are already prepared.
+        The complete allocation uses three files:
 
-        Students normally provide three ranked exact thesis topic IDs. Repeated
-        topic IDs are accepted; the earliest occurrence has the lowest preference
-        cost and a repeated choice does not create extra topic capacity.
+        1. `researchers.xlsx`
+        2. `topics.xlsx`
+        3. `student_preferences.xlsx`
 
-        Topic ID `9998` is reserved for a previous-year carry-over. If `9998`
-        appears in **any** of the three preference fields, the entire student row
-        is treated as carry-over and the other topic choices on that row are
-        ignored for current-year topic allocation. If the form requires all three
-        fields, `9998 / 9998 / 9998` is valid and represents one carry-over
-        student. The previous `final_assignments` file is an optional fourth input.
-        When it is supplied, the previous topic, selected language, daily
-        supervisor, and promotor are carried forward when valid. When it is not
-        supplied, the run still completes and the unresolved carry-over row is
-        marked `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED`.
-
-        Topic ID `9999` means a student's own topic on a row that does not contain
-        `9998`. If `9999` is used, `own_topic_description` must describe that own
-        topic. Because an own topic has no shared topic capacity, ranking `9999`
-        first means it will be selected during topic allocation.
+        Skip this section if these files are already prepared. The third file
+        contains the submission type and allocation route, including ranked,
+        self-proposed, carry-over, and dual-thesis details.
 
         In `researchers.xlsx`, `appointment_type` and the other metadata columns are
         descriptive only. Eligibility for daily-supervisor and promotor roles is
@@ -107,10 +94,16 @@ def build_notebook() -> dict[str, object]:
                     "submitter_email", "capacity",
                 ],
                 "student_preferences.xlsx": [
-                    "full_name", "email", "preference_1",
-                    "preference_1_languages", "preference_2",
-                    "preference_2_languages", "preference_3",
-                    "preference_3_languages", "own_topic_description",
+                    "full_name", "email", "student_number", "thesis_type",
+                    "partner_full_name", "partner_email", "partner_student_number",
+                    "dual_thesis_confirmation", "thesis_allocation_status",
+                    "topic_preference_1", "topic_preference_1_languages",
+                    "topic_preference_2", "topic_preference_2_languages",
+                    "topic_preference_3", "topic_preference_3_languages",
+                    "self_proposed_thesis_title", "self_proposed_thesis_description",
+                    "self_proposed_thesis_language", "carry_over_thesis_topic",
+                    "carry_over_thesis_description", "carry_over_thesis_language",
+                    "daily_supervisor_email", "thesis_promotor_email",
                 ],
             }
 
@@ -137,19 +130,15 @@ def build_notebook() -> dict[str, object]:
         _markdown('''
         ### 2.a Workflow 1: thesis topic and supervision allocation
 
-        Use **Complete allocation** for the normal annual allocation. The
-        recommended input is the direct Microsoft Forms export with the dedicated
-        ranked-topic, self-proposed-topic, carry-over, and dual-thesis sections.
-        The program recognizes those rows automatically and treats a dual pair as
-        one thesis for topic and supervision capacity.
+        Use **Complete allocation** for the normal annual allocation. Upload the
+        three standard files together. The program routes ranked, self-proposed,
+        and carry-over submissions from `student_preferences.xlsx`. A dual pair is
+        treated as one thesis for topic and supervision capacity while both
+        students remain represented in the preference cost.
 
-        Upload `researchers`, `topics`, and `student_preferences` as usual. If one
-        or more students use `9998` in any preference field, the previous
-        `final_assignments.xlsx` is an optional fourth upload (recommended filename:
-        `previous_final_assignments.xlsx`). When that file is unavailable, the run
-        continues and unresolved carry-over students are marked for manual review.
-        A repeat student who wants a new topic must submit ordinary topic IDs with
-        no `9998` in any of the three preference fields.
+        Languages are ordered alternatives. The optimizer tries to retain the
+        highest listed language that is feasible within the topic and supervision
+        constraints.
         '''),
         _code('''
         # @title 2.a Workflow 1 options
@@ -167,8 +156,8 @@ def build_notebook() -> dict[str, object]:
 
         For **One student**, fill in `student_email`. For **Everyone assigned to a
         departing supervisor**, fill in `departing_researcher_email`. Only the
-        field matching the selected scope is used. Carried `9998` topics remain
-        reassignable even when the previous topic is absent from this year's topic
+        field matching the selected scope is used. Carry-over and self-proposed
+        topics remain reassignable even when they are absent from the offered-topic
         file.
         '''),
         _code('''
@@ -182,9 +171,8 @@ def build_notebook() -> dict[str, object]:
         ## 3. Run the selected workflow
 
         After choosing the workflow and its options above, run the notebook. For
-        complete allocation, upload the three standard files plus the optional
-        previous final assignments file when available for carry-over students.
-        Reassignment continues to use three files.
+        complete allocation, upload the three standard files. Reassignment also
+        uses three files.
         '''),
         _code('''
         # @title 3.a Prepare the allocation program
@@ -293,9 +281,8 @@ def build_notebook() -> dict[str, object]:
 
         if task == "Complete allocation":
             print(
-                "Select researchers, topics, and the Microsoft Forms export or canonical student preferences together. "
-                "If any preference contains 9998, you may also select "
-                "previous_final_assignments when it is available."
+                "Select 1. researchers.xlsx, 2. topics.xlsx, and "
+                "3. student_preferences.xlsx together."
             )
         else:
             print("Select the previous assignments, researchers, and topics together.")
@@ -378,8 +365,8 @@ def build_notebook() -> dict[str, object]:
             report = json.loads((output_directory / "run_report.json").read_text(encoding="utf-8"))
             print(
                 f"Completed: {report['assigned_students']} student(s), "
-                f"including {report.get('carry_over_theses', report.get('carry_over_students', 0))} carry-over thesis/theses "
-                f"and {report.get('manual_review_students', 0)} manual-review row(s); "
+                f"including {report.get('carry_over_theses', report.get('carry_over_students', 0))} carry-over thesis group(s) "
+                f"and {report.get('manual_review_students', 0)} manual-review group(s); "
                 f"total preference cost {report['preference_cost']}."
             )
             for warning in report["warnings"]:

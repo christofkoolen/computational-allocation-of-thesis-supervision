@@ -22,7 +22,7 @@ class ColabCarryOverTests(unittest.TestCase):
         notebook_path = cls.root / "notebooks" / "Thesis_Allocation_Colab.ipynb"
         cls.notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
 
-    def test_notebook_documents_optional_previous_final_assignments(self) -> None:
+    def test_notebook_omits_legacy_reserved_id_guidance(self) -> None:
         markdown = " ".join(
             "\n".join(
                 "".join(cell["source"])
@@ -30,12 +30,10 @@ class ColabCarryOverTests(unittest.TestCase):
                 if cell["cell_type"] == "markdown"
             ).split()
         )
-        self.assertIn("`9998`", markdown)
-        self.assertIn("**any** of the three preference fields", markdown)
-        self.assertIn("`9998 / 9998 / 9998`", markdown)
-        self.assertIn("`previous_final_assignments.xlsx`", markdown)
-        self.assertIn("previous topic, selected language, daily supervisor, and promotor", markdown)
-        self.assertIn("no `9998` in any of the three preference fields", markdown)
+        self.assertNotIn("9998", markdown)
+        self.assertNotIn("9999", markdown)
+        self.assertIn("`student_preferences.xlsx`", markdown)
+        self.assertIn("ranked, self-proposed", markdown)
 
     def test_complete_colab_workflow_accepts_optional_carry_over_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

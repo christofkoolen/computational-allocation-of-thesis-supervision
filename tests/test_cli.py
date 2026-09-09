@@ -29,7 +29,12 @@ class CliTests(unittest.TestCase):
             self.assertNotIn("appointment", researchers.columns)
             self.assertIn("supervision_languages", researchers.columns)
             self.assertNotIn("supervision_languages", topics.columns)
-            self.assertIn("own_topic_description", preferences.columns)
+            self.assertIn("student_number", preferences.columns)
+            self.assertIn("thesis_type", preferences.columns)
+            self.assertIn("thesis_allocation_status", preferences.columns)
+            self.assertIn("topic_preference_1", preferences.columns)
+            self.assertIn("self_proposed_thesis_title", preferences.columns)
+            self.assertIn("carry_over_thesis_topic", preferences.columns)
 
     def test_allocates_csv_inputs_without_machine_specific_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

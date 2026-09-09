@@ -1,115 +1,56 @@
 # Computational allocation of thesis supervision
 
-This project allocates thesis topics, daily supervisors, and promotors.
+This project allocates thesis topics, daily supervisors, and promotors. It
+combines ranked student preferences with topic capacity, ordered language
+preferences, researcher eligibility, supervision capacity, topic-submitter
+priority, and semantic expertise matching.
 
-It is designed for situations where:
+The recommended interface is the Google Colab notebook. A command-line interface
+is available for local and scripted use.
 
-- students submit ranked thesis topic preferences
-- offered topics have limited capacity
-- researchers have different supervision capacities and language abilities
-- the researcher who proposed a topic should normally supervise it when eligible
-- otherwise, the topic should be matched to a researcher with relevant expertise
-- previous year thesis allocations may need to carry over
-- existing assignments may need to be reassigned when someone leaves
-
-The recommended way to use the project is through the Google Colab notebook. A Python command-line interface is also available for local or scripted use.
-
-## Recommended: use Google Colab
+## Use Google Colab
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/christofkoolen/computational-allocation-of-thesis-supervision/blob/main/notebooks/Thesis_Allocation_Colab.ipynb)
 
-The Colab notebook runs in the browser and does not require a local Python installation or GitHub authentication.
+Colleagues need three files:
 
-For a normal annual allocation:
+1. `researchers.xlsx`
+2. `topics.xlsx`
+3. `student_preferences.xlsx`
 
-1. prepare `researchers.xlsx`, `topics.xlsx`, and the direct Microsoft Forms
-   response export;
-2. open the Colab notebook;
-3. choose **Complete allocation**;
-4. select the desired options;
-5. upload the three files;
-6. download the resulting ZIP file.
+In Colab:
 
-No previous-final-assignment file is needed for carry-over rows from the new
-form because their topic, language, daily supervisor, and promotor are already
-collected in the dedicated section. A previous file is optional only for older
-canonical submissions that still use topic ID `9998`.
+1. open the notebook;
+2. choose **Complete allocation**;
+3. configure the matching options;
+4. select **Runtime > Run all**;
+5. upload the three files together;
+6. download `thesis_allocation_results.zip`.
 
-The notebook can also reassign one student's supervisor or all assignments held by a departing researcher.
+The notebook can generate blank versions of all three input files. It recognizes
+files from their columns, but the standard filenames make each annual run easier
+to organize.
 
-### Recommended Microsoft Forms export
+## Allocation workflow
 
-The complete workflow now recognizes the direct response workbook from the
-branching submission form. No renaming or manual conversion is required. The
-two routing columns are:
+The program:
 
-- `thesis_type`: individual or dual thesis;
-- `thesis_allocation_status`: new ranked topic, self-proposed topic, or
-  carry-over topic.
+1. validates researcher, topic, and student-preference data;
+2. groups the members of each individual or dual thesis;
+3. routes ranked, self-proposed, and carry-over submissions;
+4. selects a topic and ordered language alternative;
+5. assigns a daily supervisor and promotor;
+6. expands the final result to one row per student;
+7. writes group-level, student-level, workload, and diagnostic outputs.
 
-The dedicated self-proposed and carry-over sections replace reserved topic IDs
-for new form submissions. Topic IDs `9998` and `9999` remain supported only so
-older canonical input files continue to run.
-
-Carry-over supervisor emails are matched exactly first. A single small typo is
-corrected only when one researcher is a uniquely strong match. Ambiguous or weak
-matches stop with suggested candidates for review. Both the submitted email and
-its resolution details remain in the assignment outputs.
-
-A dual submission is one thesis allocation unit. It consumes one offered-topic
-place and one supervision slot for each role, and the two students receive the
-same topic, language, daily supervisor, and promotor. Its topic-rank cost is
-multiplied by two so both students are represented in the group-wide preference
-objective.
-
-Languages are ordered alternatives. For example, `Dutch; English` asks the
-optimizer to try Dutch before English. A language is feasible only when both a
-daily supervisor and a promotor can be assigned within their language and
-capacity constraints. If Dutch is infeasible but English is feasible, the topic
-may be allocated in English. If neither language is feasible, that topic choice
-cannot be allocated and the optimizer considers the other ranked topics.
-
-See [Microsoft Forms input](docs/MS_FORMS.md) for the complete column contract
-and allocation rules.
-
-## What the pipeline does
-
-A complete run has three main stages:
-
-1. **Researcher enrichment**: optionally retrieve profile and publication text for researchers.
-2. **Submission routing**: interpret each Forms row as ranked, self-proposed, or
-   carry-over, and combine a confirmed dual pair into one thesis group.
-3. **Joint allocation**: select topic, ordered language, daily supervisor, and
-   promotor together under topic, language, role, and capacity constraints.
-
-The Forms workflow solves these decisions jointly so a language or supervision
-capacity bottleneck can make the optimizer try another listed language or topic.
-The older canonical preference format keeps the legacy two-stage workflow for
-backwards compatibility.
+Topic, language, and supervision choices are optimized jointly. A language is
+feasible only when both supervision roles can be filled within the applicable
+language, eligibility, and capacity constraints.
 
 ## Input files
 
-The project accepts `.xlsx`, `.csv`, and `.tsv` files.
-
-Required for Complete allocation:
-
-- `researchers.xlsx`
-- `topics.xlsx`
-- the Microsoft Forms response export, or a legacy `student_preferences.xlsx`
-
-Optional fourth file for legacy `9998` submissions:
-
-- `previous_final_assignments.xlsx`
-
-The optional fourth file is recommended when one or more students use topic ID `9998`. When it is supplied, the program uses it as the authoritative source for those students' previous topic and supervision information. When it is omitted, the run continues and unresolved `9998` students are marked for manual review rather than causing the whole allocation to fail.
-
-Canonical column names are recommended.
-
-The Colab notebook can generate blank templates or they can be created locally with:
-
-```bash
-python -m thesis_allocation create-templates input
-```
+The project accepts `.xlsx`, `.csv`, and `.tsv` tables. Excel is recommended for
+the standard three-file workflow.
 
 ### 1. `researchers.xlsx`
 
@@ -119,41 +60,27 @@ One row represents one researcher.
 | --- | --- |
 | `full_name` | Researcher name |
 | `email` | Unique researcher identifier |
-| `appointment_type` | Descriptive appointment information only |
-| `appointment_percentage` | Descriptive appointment information only |
-| `comment` | Optional descriptive comment |
+| `appointment_type` | Descriptive appointment information |
+| `appointment_percentage` | Descriptive appointment information |
+| `comment` | Optional comment |
 | `timestamp` | Optional source or update timestamp |
-| `supervision_languages` | Languages in which the researcher can supervise; blank means unrestricted |
-| `profile_url` | Researcher profile page used for optional enrichment |
+| `supervision_languages` | Languages in which the researcher can supervise |
+| `profile_url` | Profile page used for optional enrichment |
 | `publications_url` | Publications page used for optional enrichment |
-| `profile_description` | Text describing the researcher's expertise |
-| `publication_list` | Publication text used for semantic matching |
+| `profile_description` | Expertise text used for matching |
+| `publication_list` | Publication text used for matching |
 | `daily_supervisor_minimum_theses` | Target minimum daily-supervisor workload |
 | `daily_supervisor_maximum_theses` | Hard maximum daily-supervisor workload |
 | `promotor_minimum_theses` | Target minimum promotor workload |
 | `promotor_maximum_theses` | Hard maximum promotor workload |
 
-### Researcher eligibility
+A role maximum above `0` makes the researcher eligible for that role. A maximum
+of `0` makes the researcher ineligible. Minimums are workload targets and cannot
+create eligibility.
 
-The descriptive appointment fields do not determine whether someone may supervise.
-
-Eligibility is controlled by the maximum-capacity columns:
-
-- `daily_supervisor_maximum_theses > 0` means the researcher is eligible as a daily supervisor;
-- `promotor_maximum_theses > 0` means the researcher is eligible as a promotor;
-- a maximum of `0` makes the researcher ineligible for that role.
-
-The minimum columns are workload targets. They do not make someone eligible for a role.
-
-Minimums and maximums must be non-negative whole numbers, and a minimum cannot exceed the corresponding maximum.
-
-### Supervision languages
-
-`supervision_languages` may contain multiple languages separated by commas or semicolons.
-
-If a student has an assigned supervision language, a researcher who does not support that language is excluded before semantic similarity or workload optimization is considered.
-
-A blank researcher language field is treated as unrestricted for backwards compatibility.
+Multiple supervision languages may be separated by semicolons, commas, slashes,
+or pipes. A blank researcher-language field is treated as unrestricted for
+backwards compatibility.
 
 ### 2. `topics.xlsx`
 
@@ -161,540 +88,202 @@ One row represents one offered thesis topic.
 
 | Column | Purpose |
 | --- | --- |
-| `topic_id` | Stable unique ID used in student preferences |
+| `topic_id` | Stable unique numerical or textual identifier |
 | `topic_title` | Official topic title |
-| `topic_description` | Optional description used in semantic supervisor matching and copied into `assigned_topic_description` |
-| `submitter_email` | Email of the researcher who proposed the topic |
-| `capacity` | Maximum number of students who may receive this offered topic |
+| `topic_description` | Description used for semantic matching |
+| `submitter_email` | Researcher who proposed the topic |
+| `capacity` | Maximum number of theses that may receive the topic |
 
-`topic_id` and `topic_title` must be unique.
+Students select topics using exact `topic_id` values. Titles are display text and
+are not used as identifiers. Topic capacity is a hard constraint.
 
-Topic IDs `9998` and `9999` are reserved and must not appear in `topics.xlsx`. `9998` means previous-year carry-over and `9999` means a student-specific own topic.
-
-### Topic capacity
-
-Topic capacity is a hard constraint during topic allocation.
-
-For example, if a topic has:
-
-```text
-capacity = 3
-```
-
-then at most three students can receive that offered topic, even if more students rank it first.
-
-If the `capacity` column is omitted entirely, the default capacity is `1`. If the column is present, each topic must have a positive whole-number capacity.
-
-Topic capacity is separate from supervisor capacity. Topic capacity limits how many students can receive a topic. Researcher maximums limit how many theses a researcher may supervise.
-
-### Why `topic_description` matters
-
-`topic_description` does not affect which ranked topic a student receives.
-
-It is used later for semantic supervisor matching. For an offered topic, the program combines:
-
-```text
-topic_title + topic_description
-```
-
-and compares that text with researcher expertise derived from:
-
-```text
-profile_description + publication_list
-```
-
-The allocated description is also written to `assigned_topic_description` so `final_assignments.xlsx` contains the topic text needed for later carry-over and reassignment.
-
-A concise, substantive topic description gives the semantic matcher more information about the expertise relevant to the thesis.
-
-The default semantic model is:
-
-```text
-BAAI/bge-base-en-v1.5
-```
-
-The model converts topic and researcher text into normalized embeddings and the program compares them using cosine similarity.
-
-The current implementation does **not** chunk long researcher text. `profile_description` and `publication_list` are concatenated and sent to the embedding model as one text. Text beyond the model's effective input length can therefore be truncated. Keeping the most informative research description and publication information near the beginning of these fields is useful when the combined text is very long.
-
-### What if the person who submitted a topic has left?
-
-The topic remains valid.
-
-The submitter receives special supervision priority only when that person is still an eligible researcher for the relevant role. If the submitter is absent from the eligible candidate pool, the program falls back to normal matching using language compatibility, capacity, workload targets, semantic similarity, and load balancing.
-
-For a **new allocation**, a former employee should be removed from the researcher file or given a maximum capacity of `0` for roles they may no longer perform. If a former employee remains in `researchers.xlsx` with a positive maximum, the program still considers that person eligible.
-
-For **reassignment of existing assignments**, use the reassignment workflow described below. The departing researcher is explicitly excluded from replacement candidates while unaffected assignments remain fixed.
+An eligible topic submitter has absolute supervision priority for that topic up
+to the researcher's role capacity. Language compatibility, role eligibility,
+maximum capacity, and the distinct-role requirement remain mandatory.
 
 ### 3. `student_preferences.xlsx`
 
-One row represents one student's submission.
+One row represents an individual thesis or one dual-thesis pair.
+
+Common fields:
 
 | Column | Purpose |
 | --- | --- |
-| `full_name` | Student name |
-| `email` | Unique student identifier |
-| `preference_1` | First-choice topic ID; if `9998` appears in any preference field, the whole row is treated as carry-over |
-| `preference_1_languages` | Acceptable supervision language or languages for the first choice |
-| `preference_2` | Second-choice topic ID; `9998` here also means carry-over |
-| `preference_2_languages` | Acceptable supervision language or languages for the second choice |
-| `preference_3` | Third-choice topic ID; `9998` here also means carry-over |
-| `preference_3_languages` | Acceptable supervision language or languages for the third choice |
-| `own_topic_description` | Required when the row uses topic ID `9999` and does not contain `9998` |
+| `full_name` | Primary student's name |
+| `email` | Primary student's unique email |
+| `student_number` | Primary student's number |
+| `thesis_type` | Individual or dual thesis |
+| `thesis_allocation_status` | Ranked, self-proposed, or carry-over route |
 
-For ordinary current-year allocation, students provide all three preference fields. The topic IDs do **not** have to be different. Repeated topic IDs are accepted.
+A dual thesis additionally uses:
 
-For example:
+- `partner_full_name`
+- `partner_email`
+- `partner_student_number`
+- `dual_thesis_confirmation`
 
-```text
-preference_1 = A
-preference_2 = A
-preference_3 = B
-```
+Only one partner should submit the pair. If the same student appears in multiple
+thesis groups, validation stops so conflicting rankings cannot be selected
+silently.
 
-is valid input. If topic `A` can be assigned, its first occurrence has the lowest rank cost and is therefore the effective choice. If `A` cannot be assigned because its capacity is exhausted, the repeated `A` does not provide an additional alternative, so `B` remains a third-choice fallback.
+#### Ranked topic route
 
-This permissive behavior is intentional. The program does not reject a student's submission simply because the same topic was selected more than once.
+The ranked route uses:
 
-Topic titles are not used as identifiers and there is no fuzzy title matching.
+- `topic_preference_1` and `topic_preference_1_languages`
+- `topic_preference_2` and `topic_preference_2_languages`
+- `topic_preference_3` and `topic_preference_3_languages`
 
-By default, if a form export contains multiple rows with the same student email, the final row is retained. The CLI can instead keep the first row or stop with an error.
+The three topic IDs must be different. Topic ranks cost 1, 2, and 3 points. The
+optimizer minimizes the total student-weighted topic cost across the complete
+group. For a dual pair, the chosen rank cost is multiplied by two.
 
-## Previous-year carry-over: topic ID `9998`
+Languages are ordered alternatives. For example, `Dutch; English` prefers Dutch
+over English. If Dutch has insufficient feasible supervision capacity but English
+is feasible, the thesis may be assigned in English. If neither is feasible, that
+topic choice is unavailable and another ranked topic must be considered.
 
-Topic ID `9998` means: **continue my previous thesis allocation**.
+#### Self-proposed topic route
 
-A student is treated as carry-over when `9998` appears in **any** of the three preference fields. For example, all of these are carry-over submissions:
+The self-proposed route uses:
 
-```text
-9998 / 9998 / 9998
-9998 / A / B
-A / 9998 / B
-A / B / 9998
-```
+- `self_proposed_thesis_title`
+- `self_proposed_thesis_description`
+- `self_proposed_thesis_language`
 
-`9998` is an instruction, not a ranked fallback. If it appears anywhere on the row, the student is removed from current-year topic allocation and the other topic choices on that row are ignored. The original submitted preference values are nevertheless retained in the assignment outputs for auditability.
+The topic is fixed and does not consume capacity from `topics.xlsx`. Its title
+and description are used directly for supervisor matching. Both supervision
+roles must still be feasible in one of the submitted languages.
 
-This means that:
+#### Carry-over topic route
 
-```text
-preference_1 = A
-preference_2 = 9998
-preference_3 = B
-```
+The carry-over route uses:
 
-does **not** mean “try A first, then carry over.” It means “carry over my previous thesis allocation.”
+- `carry_over_thesis_topic`
+- `carry_over_thesis_description`, optional
+- `carry_over_thesis_language`
+- `daily_supervisor_email`
+- `thesis_promotor_email`
 
-If a form requires all three fields to contain a value, `9998 / 9998 / 9998` is therefore valid and represents one carry-over student.
+The existing topic is fixed. Named supervisors are retained with priority when
+they remain eligible, language-compatible, and within maximum capacity.
 
-If a row contains both `9998` and `9999`, `9998` takes precedence and the own-topic instruction is ignored for that annual run.
+Supervisor emails are matched exactly after capitalization and surrounding-space
+normalization. A one-character typo is corrected automatically only when one
+researcher is a uniquely strong match. Weak or ambiguous matches stop with the
+closest candidates listed for correction. The submitted values and resolution
+details remain in the outputs.
 
-### When `previous_final_assignments.xlsx` is available
+See [student preference input](docs/STUDENT_PREFERENCES.md) for the complete
+column contract.
 
-Complete allocation matches the student by normalized email to `previous_final_assignments.xlsx` and carries forward:
+## Optimization priorities
 
-- `assigned_topic_id`
-- `assigned_topic`
-- `assigned_topic_description`
-- `assigned_language`
-- previous daily supervisor
-- previous promotor
+The current workflow applies these priorities in order:
 
-The previous final-assignment row is authoritative for the `9998` student's topic. That student's topic is not resolved against the current `topics.xlsx`, even when the old topic ID has been reused for a different current-year topic.
+1. produce a complete allocation, unless partial results were requested;
+2. retain feasible named carry-over supervisors;
+3. minimize student-weighted topic rank cost;
+4. minimize student-weighted language rank;
+5. maximize assignments to eligible topic submitters;
+6. meet researcher minimum workload targets where feasible;
+7. maximize semantic fit with mild load balancing.
 
-Valid previous supervisors remain fixed only up to their current role maximums. If three carry-over students point to a researcher whose current maximum is two, the first two carry-over roles are retained and the third role is cleared and reassigned through normal matching. The topic and language remain carried over.
+After each stage, its optimum is fixed before the next stage is solved. Topic
+capacity, researcher maximum capacity, role eligibility, language compatibility,
+and distinct supervision roles remain hard constraints.
 
-If a previous supervisor has left, is currently ineligible, or is incompatible with the carried language, only that role is cleared and reassigned.
+## Dual-thesis capacity
 
-If a previous-final-assignment file is supplied but a `9998` student's normalized email is not present in it, the program stops with a validation error. In that situation the supplied continuity data and the current student submission are inconsistent and should be reviewed.
+A dual pair is one thesis allocation unit. It consumes:
 
-### When `previous_final_assignments.xlsx` is not available
+- one offered-topic place;
+- one daily-supervisor slot;
+- one promotor slot.
 
-The complete allocation does **not** stop. The `9998` student remains in `topic_assignments.xlsx`, `final_assignments.xlsx`, and the shareable output, but automatic topic and supervisor inference is deliberately skipped for that student.
+Both students receive the same topic, language, daily supervisor, and promotor.
+They appear as separate rows in `final_assignments.xlsx` with the same
+`thesis_group_id`. Capacity reporting uses the group-level result, so the pair is
+counted once.
 
-The unresolved row is marked clearly for manual follow-up. Human-readable assignment fields use:
+## Output files
 
-```text
-CARRY-OVER STUDENT - MANUAL REVIEW NEEDED
-```
+A complete run produces:
 
-The supervisor/promotor email fields remain blank so the program does not invent researcher identifiers. `topic_assignment_source` is `carry_over_manual_review`, the supervision assignment-source fields are `manual_review`, and `run_report.json` reports the number of unresolved rows in `manual_review_students`.
-
-All other students continue through the normal annual allocation.
-
-A repeat student who wants a new topic must submit three ordinary topic IDs with no `9998` in any of the three fields. Being present in the previous assignment file does not trigger carry-over by itself.
-
-See [`docs/CARRY_OVER.md`](docs/CARRY_OVER.md) for the detailed policy.
-
-## Own topics: topic ID `9999`
-
-Topic ID `9999` represents a student-specific own topic.
-
-When a student uses `9999` on a row that does not contain `9998`:
-
-- `own_topic_description` is required;
-- it does not consume capacity from any offered topic;
-- it has no topic submitter;
-- its description is copied into `assigned_topic_description` and used directly for semantic supervisor matching.
-
-Repeated `9999` preferences are accepted as well. If it occurs more than once, the earliest occurrence has the lowest rank cost. Because an own topic has no shared topic-capacity constraint, a first-choice `9999` will be selected during topic allocation.
-
-Supervisor allocation still has to satisfy researcher eligibility, language, and capacity constraints.
-
-## How topic allocation works
-
-The program models topic allocation as a minimum-cost flow problem.
-
-Each ordinary student can receive at most one topic. Each offered topic can receive students only up to its declared capacity. A student's first, second, and third preference positions have costs of `1`, `2`, and `3` respectively.
-
-The optimizer finds a complete feasible allocation with the smallest possible total preference cost. In practical terms, it tries to keep students as high as possible in their ranked preferences across the whole cohort rather than processing students one by one.
-
-Preferences are resolved by exact topic ID only.
-
-Repeated IDs simply create repeated ranked routes to the same topic. The earliest occurrence has the lowest cost. Repetition does not increase a topic's capacity and does not create an extra fallback option.
-
-Students with `9998` in any preference field are separated before this current-year topic optimization and contribute no preference cost.
-
-If the selected preference contains one or more supervision languages, the first listed language for the selected occurrence is carried forward as `assigned_language` for the supervision stage.
-
-Topic allocation itself does not reject a topic because a later supervision-language match may be difficult. If the supervision stage later has insufficient language-compatible capacity, the topic allocation is not automatically rerun.
-
-## How daily supervisors and promotors are chosen
-
-After topics have been assigned or carried over, daily supervisors and promotors are matched separately as global optimization problems.
-
-For each role, the program first builds the set of eligible researcher candidates. A candidate must:
-
-1. have a positive maximum capacity for that role;
-2. support the student's `assigned_language` when one is specified;
-3. have available capacity;
-4. satisfy any explicit exclusions;
-5. be different from the student's other supervision role unless `--allow-same-person` is used.
-
-Among feasible candidates, the optimization follows these priorities.
-
-### 1. Eligible topic submitter
-
-For current-year offered topics, an eligible topic submitter receives absolute assignment priority up to that person's maximum capacity.
-
-Submitter priority still respects supervision-language compatibility, role eligibility, maximum capacity, explicit exclusions, and the distinct-role rule.
-
-If the submitter is unavailable or ineligible, the topic is matched normally. Own topics and `9998` carry-over topics have no current-year submitter priority.
-
-### 2. Minimum workload targets
-
-After submitter priority, the optimizer prioritizes available slots that help researchers reach their declared minimum workload targets.
-
-Minimums are targets rather than hard guarantees. A minimum can remain unmet when other constraints make it impossible to satisfy.
-
-### 3. Semantic similarity
-
-The semantic model compares the assigned topic text with researcher profile and publication text.
-
-For current-year offered topics:
-
-```text
-topic text = assigned_topic + assigned_topic_description
-```
-
-For own topics:
-
-```text
-topic text = own_topic_description
-```
-
-For `9998` carry-over topics with a resolved previous final assignment:
-
-```text
-topic text = previous assigned_topic + previous assigned_topic_description
-```
-
-Older previous-final-assignment files without `assigned_topic_description` fall back to the previous `assigned_topic` title. Unresolved `9998` manual-review rows are excluded from automatic supervisor matching.
-
-For researchers:
-
-```text
-researcher text = profile_description + publication_list
-```
-
-The resulting similarity score helps the optimizer choose researchers whose expertise is more closely related to the thesis topic.
-
-### 4. Load balancing
-
-A mild incremental load-balancing cost discourages unnecessary concentration of assignments on the same researchers when otherwise comparable alternatives exist.
-
-### Distinct daily supervisor and promotor
-
-By default, one person cannot be both the daily supervisor and promotor for the same student.
-
-The CLI option:
-
-```text
---allow-same-person
-```
-
-removes this restriction.
-
-## Existing and carry-over assignments
-
-Supervisor matching can preserve existing daily-supervisor and promotor assignments.
-
-Email is the canonical researcher identifier. A name-only fixed assignment is accepted only when it matches exactly one researcher.
-
-For general fixed preassignments passed directly to supervisor matching, conflicting names/emails, unknown researcher emails, and language-incompatible fixed supervisors are rejected.
-
-The annual `9998` workflow is more recovery-oriented: a previous supervisor who is absent, currently ineligible, language-incompatible, or beyond the current role maximum is cleared for the affected carry-over student and that open role is reassigned. Valid carry-over assignments count against current maximum capacity. If no previous-final-assignment file is supplied at all, the unresolved `9998` row is instead retained for manual review and excluded from automatic supervisor matching.
-
-## Reassignment
-
-The project supports targeted reassignment without rebuilding every supervision assignment.
-
-You can replace one student's daily supervisor or promotor, or every assignment held by one departing researcher for a selected role.
-
-The reassignment workflow clears only the selected role for the affected student or students. All other assignments remain fixed and count toward current workload.
-
-The same language, capacity, distinct-role, minimum-workload, semantic, and load-balancing rules are then used to fill the open assignments.
-
-The reassignment output includes a change log containing the previous assignee, replacement, semantic score, and assignment source.
-
-### Reassign a departing daily supervisor from the CLI
-
-```bash
-python -m thesis_allocation reassign \
-  --assignments output/final_assignments.xlsx \
-  --topics input/topics.xlsx \
-  --researchers output/researchers_enriched.xlsx \
-  --role daily_supervisor \
-  --departing-supervisor-email person@example.org \
-  --output output/final_assignments_reassigned.xlsx \
-  --summary-output output/supervisor_summary_reassigned.xlsx \
-  --log-output output/reassignment_log.csv
-```
-
-### Reassign one student's promotor from the CLI
-
-```bash
-python -m thesis_allocation reassign \
-  --assignments output/final_assignments.xlsx \
-  --topics input/topics.xlsx \
-  --researchers output/researchers_enriched.xlsx \
-  --role promotor \
-  --student-email student@example.org \
-  --output output/final_assignments_reassigned.xlsx \
-  --summary-output output/supervisor_summary_reassigned.xlsx \
-  --log-output output/reassignment_log.csv
-```
-
-## Researcher enrichment
-
-The enrichment stage can retrieve visible text from researcher profile and publication pages when those fields are missing.
-
-Existing `profile_description` and `publication_list` values are reused unless refresh mode is requested.
-
-A failed retrieval does not remove the researcher. The enriched output records retrieval status and the run emits a warning so that the input can be reviewed.
-
-Use `--skip-scrape` in a complete CLI run when no web retrieval should occur.
-
-## Outputs
-
-A complete allocation produces:
-
-| File | Contents |
+| File | Purpose |
 | --- | --- |
-| `researchers_enriched.xlsx` | Researcher input, retrieved text, and retrieval status |
-| `topic_assignments.xlsx` | Assigned topic ID, title, description, selected language, assigned rank, and preference cost |
-| `final_assignments.xlsx` | Full allocation with topic ID/title/description, daily supervisor, promotor, semantic scores, assignment sources, and carried-forward student fields |
-| `final_assignments_shareable.xlsx` | Reduced publication copy with student identity, assigned topic and language, and supervisor/promotor names and emails |
-| `supervisor_summary.xlsx` | Researcher minimums, maximums, actual workload, language information, and capacity flags |
-| `run_report.json` | Machine-readable totals, manual-review count, warnings, and output paths |
+| `researchers_enriched.xlsx` | Validated and optionally enriched researcher data |
+| `topic_assignments.xlsx` | One row per thesis group with topic allocation details |
+| `thesis_group_assignments.xlsx` | Complete group-level topic and supervision audit |
+| `final_assignments.xlsx` | Complete student-level results |
+| `final_assignments_shareable.xlsx` | Reduced student-facing assignment fields |
+| `supervisor_summary.xlsx` | Workload, minimum, and maximum overview |
+| `run_report.json` | Counts, warnings, and output paths |
 
-### Fields in `final_assignments.xlsx`
+The group-level workbook is authoritative for topic and supervision capacity.
+The student-level workbook is appropriate for communication and student-record
+workflows.
 
-The full final-assignment workbook is the authoritative allocation record and is also the preferred input for future `9998` carry-over and reassignment workflows.
+## Run locally
 
-| Field | Meaning |
-| --- | --- |
-| `full_name` | Student's name |
-| `email` | Student's email; the canonical unique student identifier |
-| `preference_1` | Student's submitted first-choice topic ID; a carry-over row may have `9998` here or in another preference field |
-| `preference_1_languages` | Language or languages submitted for preference 1 |
-| `preference_2` | Student's submitted second-choice topic ID; `9998` here also makes the row carry-over |
-| `preference_2_languages` | Language or languages submitted for preference 2 |
-| `preference_3` | Student's submitted third-choice topic ID; `9998` here also makes the row carry-over |
-| `preference_3_languages` | Language or languages submitted for preference 3 |
-| `own_topic_description` | Student's own-topic description when `9999` is used on a non-carry-over row; otherwise normally blank |
-| `assigned_topic_id` | Topic ID actually allocated or carried forward; unresolved manual-review carry-over rows retain `9998` |
-| `assigned_topic` | Title of the allocated topic, `Own topic` for `9999`, the previous title for resolved `9998`, or the manual-review marker for unresolved `9998` |
-| `assigned_topic_description` | Description of the allocated topic; copied from the current topic, the `9999` own-topic description, the previous final assignment for resolved `9998`, or the manual-review marker when no previous file is supplied |
-| `assigned_rank` | Rank of the selected current-year preference: 1, 2, or 3; blank for `9998` students |
-| `assigned_cost` | Topic-allocation cost; currently identical to `assigned_rank`; blank for `9998` students |
-| `assigned_language` | Supervision language carried from the selected current-year preference, from the previous final assignment for resolved `9998`, or the manual-review marker for unresolved `9998` |
-| `topic_assignment_source` | How the topic entered the current result: normally `ranked_preference`, `carry_over`, or `carry_over_manual_review` |
-| `daily_supervisor` | Name of the assigned daily supervisor, or the manual-review marker for an unresolved `9998` row |
-| `daily_supervisor_email` | Email of the assigned daily supervisor; canonical researcher identifier; blank for unresolved manual-review rows |
-| `daily_supervisor_match_score` | Semantic similarity between the assigned topic text and the daily supervisor's profile/publication text; normally blank when the role was preserved as carry-over or requires manual review |
-| `daily_supervisor_assignment_source` | Why the daily supervisor was assigned, such as `carry_over`, `topic_submitter`, `semantic`, `preassigned`, or `manual_review` |
-| `promotor` | Name of the assigned promotor, or the manual-review marker for an unresolved `9998` row |
-| `promotor_email` | Email of the assigned promotor; canonical researcher identifier; blank for unresolved manual-review rows |
-| `promotor_match_score` | Semantic similarity between the assigned topic text and the promotor's profile/publication text; normally blank when the role was preserved as carry-over or requires manual review |
-| `promotor_assignment_source` | Why the promotor was assigned, such as `carry_over`, `topic_submitter`, `semantic`, `preassigned`, or `manual_review` |
-
-For a resolved `9998` student, the previous `final_assignments.xlsx` row is the authoritative source for `assigned_topic_id`, `assigned_topic`, `assigned_topic_description`, and `assigned_language`. The current `topics.xlsx` is not consulted for that student's carried topic. The previous daily supervisor and promotor are retained when they remain valid and fit within the current maximum capacity; otherwise only the affected role is reopened for matching.
-
-For an unresolved `9998` student where no previous-final-assignment file was supplied, the row is retained with `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED` in the human-readable assignment fields. Automatic supervision matching is skipped and the researcher email fields remain blank.
-
-Older previous-final-assignment files without `assigned_topic_description` remain accepted. In that case, the previous `assigned_topic` title is used as the semantic matching fallback. New final-assignment files include the description so subsequent carry-over runs are self-contained.
-
-`final_assignments_shareable.xlsx` contains exactly these columns:
-
-```text
-full_name
-email
-assigned_topic
-assigned_language
-daily_supervisor
-daily_supervisor_email
-promotor
-promotor_email
-```
-
-It is a reduced-column sharing copy, not an anonymized dataset. It still contains student and researcher email addresses, so publication should follow the institution's applicable privacy rules.
-
-Assignment sources make the full result easier to audit. A supervision assignment can come from an existing carry-over, topic-submitter priority, general semantic matching, or a manual-review fallback.
-
-The pipeline stops with an actionable error when the input is invalid or a complete assignment is impossible. Partial results can be explicitly enabled when appropriate.
-
-## Using Google Colab
-
-The Colab notebook is intended for colleagues who do not normally use Python or a terminal.
-
-### Complete allocation
-
-Choose **Complete allocation** and upload researcher data, topic data, and student preferences. If any preference field for any student contains `9998`, the previous final assignments are an **optional fourth upload** in the same upload window. When supplied, they are used to resolve and carry the previous thesis allocation forward. When omitted, the notebook still completes the run and marks unresolved `9998` students `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED` for manual follow-up. The notebook separates carry-over students first, allocates current-year topics for everyone else, fills open daily-supervisor and promotor roles for resolvable students, and downloads `thesis_allocation_results.zip`. The ZIP includes both the full `final_assignments.xlsx` and the reduced `final_assignments_shareable.xlsx`.
-
-### Reassignment
-
-Choose **Reassign supervision** and upload the previous final assignments, researcher data, and topic data. Choose the role and whether to replace one student's assignment or all assignments held by a departing researcher. The notebook downloads `thesis_reassignment_results.zip`.
-
-### Semantic versus lexical matching
-
-The notebook offers:
-
-- **Semantic matching (recommended)**, using the sentence-transformer backend and the default `BAAI/bge-base-en-v1.5` model;
-- **Lexical matching (fast)**, using TF-IDF as an offline fallback.
-
-A GPU runtime can accelerate embedding generation when CUDA is available to PyTorch and Sentence Transformers. The code does not force a CPU device, so the semantic model can use an available CUDA device automatically. Topic optimization, spreadsheet processing, and most other stages remain CPU work.
-
-### Data handling in Colab
-
-Colab runs on a Google-hosted virtual machine, so uploaded student and researcher data leave the user's computer.
-
-The notebook does not mount Google Drive, does not display uploaded input tables, removes uploaded input files after processing, downloads outputs as one ZIP archive, and instructs the user to disconnect and delete the runtime when finished.
-
-## Command-line installation
-
-Python 3.10 or newer is required.
-
-For semantic matching:
+Install Python 3.10 or newer, then install the package:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
 python -m pip install -e ".[semantic]"
 ```
 
-Create blank input templates:
+Create blank inputs:
 
 ```bash
-python -m thesis_allocation create-templates input
+thesis-allocation create-templates input
 ```
 
-Run the complete pipeline:
+Run the complete workflow:
 
 ```bash
-python -m thesis_allocation run \
+thesis-allocation run \
   --researchers input/researchers.xlsx \
   --topics input/topics.xlsx \
   --preferences input/student_preferences.xlsx \
-  --output-directory output
+  --output-directory output \
+  --skip-scrape
 ```
 
-When `9998` appears in any preference field and a previous final-assignment file is available, add:
+Remove `--skip-scrape` to retrieve missing researcher profile and publication
+text from configured URLs. Use `--backend tfidf` for fast offline lexical
+matching.
 
-```text
---previous-final-assignments input/previous_final_assignments.xlsx
-```
+## Reassign supervision
 
-This option is not mandatory. If it is omitted, unresolved `9998` students are retained as manual-review rows and the rest of the run proceeds normally.
-
-The first semantic run downloads the default `BAAI/bge-base-en-v1.5` model.
-
-Useful options include:
-
-```text
---skip-scrape
---backend tfidf
---model MODEL_NAME
---allow-partial
---allow-same-person
-```
-
-## Running individual stages
-
-### Enrich researchers
+The reassignment command replaces one student's role or every assignment held by
+a departing researcher while preserving unaffected assignments.
 
 ```bash
-python -m thesis_allocation scrape-researchers \
+thesis-allocation reassign \
+  --assignments output/final_assignments.xlsx \
+  --topics input/topics.xlsx \
   --researchers input/researchers.xlsx \
-  --output output/researchers_enriched.xlsx
+  --role daily_supervisor \
+  --departing-supervisor-email researcher@example.org \
+  --output output/final_assignments_reassigned.xlsx \
+  --summary-output output/supervisor_summary_reassigned.xlsx \
+  --log-output output/reassignment_log.csv
 ```
 
-### Allocate topics only
+## Development
+
+Run the tests with:
 
 ```bash
-python -m thesis_allocation allocate-topics \
-  --preferences input/student_preferences.xlsx \
-  --topics input/topics.xlsx \
-  --output output/topic_assignments.xlsx
+python -m unittest discover -s tests -v
 ```
 
-The standalone `allocate-topics` stage does not process `9998`; previous-year carry-over belongs to the complete annual `run` workflow because it requires current researcher data and can optionally use the previous final assignments.
-
-### Match supervisors only
+Validate that the committed Colab notebook matches its generator:
 
 ```bash
-python -m thesis_allocation match-supervisors \
-  --assignments output/topic_assignments.xlsx \
-  --topics input/topics.xlsx \
-  --researchers output/researchers_enriched.xlsx \
-  --output output/final_assignments.xlsx \
-  --summary-output output/supervisor_summary.xlsx
+python scripts/build_colab_notebook.py --check
 ```
 
-## Important policy summary
-
-- Ordinary current-year students provide three ranked topic-ID fields.
-- Topic ID `9998` is reserved for previous-year carry-over. If it appears in **any** of the three preference fields, the entire row is treated as carry-over and the other topic choices are ignored for current-year topic allocation.
-- `9998 / 9998 / 9998` is valid and represents one carry-over student.
-- If a row contains both `9998` and `9999`, `9998` takes precedence.
-- `previous_final_assignments.xlsx` is an optional but recommended fourth input when `9998` students are present.
-- With the previous file, a `9998` student's topic information comes from that previous final assignment, not the current topics file.
-- Without the previous file, the run continues and unresolved `9998` rows are marked `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED`; automatic supervisor matching is skipped for those rows.
-- If a previous file is supplied but a `9998` student's email is missing from it, the program raises a validation error.
-- Valid carry-over supervision is preserved only up to current maximum capacities; excess roles are reassigned.
-- Topic ID `9999` is reserved for a student's own topic on non-carry-over rows.
-- Repeated ordinary topic IDs are accepted and do not cause input validation to fail.
-- When the same ordinary topic appears more than once, its earliest occurrence has the lowest rank cost.
-- Topic titles are display fields and are not used to resolve ordinary preferences.
-- Offered-topic capacity is a hard constraint.
-- Own topics and carry-over topics do not consume shared current-year offered-topic capacity.
-- `assigned_topic_description` is retained in final assignments for semantic matching and future carry-over.
-- Researcher role eligibility is determined by positive maximum capacity for that role.
-- `assigned_language` is a hard supervision-eligibility constraint.
-- Eligible current-year topic submitters receive supervision priority up to their available capacity.
-- Researcher minimums are prioritized workload targets.
-- Semantic similarity is optimized globally among feasible candidates.
-- Daily supervisor and promotor must normally be different people.
-- Existing valid assignments remain fixed unless explicitly targeted for reassignment or released by annual carry-over validation.
-- Invalid topic IDs, conflicting fixed assignments, and infeasible complete allocations produce explicit errors.
+See [algorithm details](docs/ALGORITHM.md), [Colab guide](docs/COLAB.md), and
+[student preference input](docs/STUDENT_PREFERENCES.md) for more information.

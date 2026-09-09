@@ -287,12 +287,12 @@ def _command_run(args: argparse.Namespace) -> None:
         form_warnings = list(grouped.warnings)
         if args.previous_final_assignments:
             form_warnings.append(
-                "previous_final_assignments was ignored because the Microsoft "
-                "Forms export already contains dedicated carry-over fields"
+                "previous_final_assignments was ignored because the branching "
+                "student-preference input already contains carry-over fields"
             )
         warnings = tuple(dict.fromkeys([*scrape_warnings, *form_warnings]))
         report = {
-            "input_format": "microsoft_forms",
+            "input_format": "branching_student_preferences",
             "assigned_students": grouped.assigned_students,
             "assigned_theses": grouped.assigned_theses,
             "dual_theses": grouped.dual_theses,
