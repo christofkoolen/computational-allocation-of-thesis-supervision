@@ -51,6 +51,11 @@ The dedicated self-proposed and carry-over sections replace reserved topic IDs
 for new form submissions. Topic IDs `9998` and `9999` remain supported only so
 older canonical input files continue to run.
 
+Carry-over supervisor emails are matched exactly first. A single small typo is
+corrected only when one researcher is a uniquely strong match. Ambiguous or weak
+matches stop with suggested candidates for review. Both the submitted email and
+its resolution details remain in the assignment outputs.
+
 A dual submission is one thesis allocation unit. It consumes one offered-topic
 place and one supervision slot for each role, and the two students receive the
 same topic, language, daily supervisor, and promotor. Its topic-rank cost is

@@ -41,6 +41,14 @@ Because topic and supervision choices are in the same model, a topic-language
 option with insufficient supervision capacity is unavailable. The next language
 listed for that topic can then be selected, or another ranked topic can be used.
 
+Before optimization, named carry-over researcher emails are normalized and
+matched exactly. An unmatched value is corrected automatically only when one
+researcher is a unique high-confidence match at Damerau-Levenshtein distance one,
+with a sufficient score and runner-up margin. This recognizes a single inserted,
+deleted, substituted, or transposed character. Ambiguous and weaker matches are
+input errors rather than automatic reassignments. Submitted values and resolution
+diagnostics remain in the final output.
+
 ## 3. Legacy canonical topic allocation
 
 Each student, offered topic, and capacity is represented in a flow network:

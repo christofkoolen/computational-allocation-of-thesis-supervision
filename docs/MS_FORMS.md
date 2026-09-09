@@ -105,6 +105,39 @@ current supervisors are retained with priority, subject to current eligibility,
 language, maximum capacity, and the distinct-role rule. An unavailable or
 ineligible named supervisor is reopened for matching and produces a warning.
 
+### Supervisor email recovery
+
+Carry-over supervisor emails are matched in three steps:
+
+1. normalize capitalization and surrounding spaces;
+2. try an exact match against researcher emails;
+3. when exact matching fails, accept a fuzzy match only if it is a unique,
+   high-confidence one-character insertion, deletion, replacement, or adjacent
+   transposition.
+
+A fuzzy match also requires a clear margin over the second-best candidate. Weak
+or ambiguous matches stop the run and list the closest researcher emails so the
+input can be corrected. The program does not silently reassign a carry-over role
+when it cannot confidently identify the submitted researcher.
+
+The final assignment output records:
+
+| Column | Purpose |
+| --- | --- |
+| `submitted_daily_supervisor_email` | Exact daily-supervisor value entered in the form |
+| `daily_supervisor_email` | Resolved and ultimately assigned researcher email |
+| `daily_supervisor_email_resolution` | `exact` or `fuzzy_match` |
+| `daily_supervisor_email_match_score` | Similarity score used for audit |
+| `submitted_thesis_promotor_email` | Exact promotor value entered in the form |
+| `thesis_promotor_email` | Resolved submitted promotor email |
+| `thesis_promotor_email_resolution` | `exact` or `fuzzy_match` |
+| `thesis_promotor_email_match_score` | Similarity score used for audit |
+| `promotor_email` | Ultimately assigned promotor email |
+
+After identification, ordinary eligibility rules still apply. A confidently
+identified researcher who is ineligible, language-incompatible, or beyond their
+maximum capacity is reopened for assignment with a warning.
+
 New Forms submissions do not use topic ID `9998` and do not require a previous
 final-assignment file. Legacy canonical preference files using `9998` remain
 supported during the transition.

@@ -232,6 +232,12 @@ def normalize_forms_submissions(
             normalized["thesis_promotor_email"] = normalize_email(
                 source["thesis_promotor_email"]
             )
+            normalized["submitted_daily_supervisor_email"] = clean_text(
+                source["daily_supervisor_email"]
+            )
+            normalized["submitted_thesis_promotor_email"] = clean_text(
+                source["thesis_promotor_email"]
+            )
             normalized["carry_over_thesis_description"] = clean_text(
                 source["carry_over_thesis_description"]
             )
