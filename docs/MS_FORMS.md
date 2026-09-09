@@ -1,0 +1,126 @@
+# Microsoft Forms submission export
+
+The recommended annual input is the `.xlsx` response export downloaded directly
+from Microsoft Forms. Upload it alongside `researchers.xlsx` and `topics.xlsx`.
+The program detects the file from its columns, so its filename does not matter.
+
+## Common fields
+
+Every response requires:
+
+| Column | Meaning |
+| --- | --- |
+| `full_name` | Student name used in allocation outputs |
+| `email` | Unique student identifier |
+| `student_number` | Student number retained for auditing |
+| `thesis_type` | Individual or dual thesis answer |
+| `thesis_allocation_status` | Ranked, self-proposed, or carry-over route |
+
+The custom `full_name` and `email` fields are authoritative. Microsoft Forms
+metadata such as `Name` and `Email` remains in the full output for auditing but
+is not used as the student identity.
+
+## Dual thesis submissions
+
+For a dual thesis, the response also requires:
+
+| Column | Meaning |
+| --- | --- |
+| `partner_full_name` | Second student's name |
+| `partner_email` | Second student's unique email |
+| `partner_student_number` | Second student's student number |
+| `dual_thesis_confirmation` | Confirmation that both students agreed |
+
+One partner submits the form for the pair. The other partner must not submit a
+second response. The program rejects any student email that appears in more than
+one thesis group.
+
+A pair is one thesis for capacity purposes:
+
+- one place from the allocated offered topic;
+- one daily-supervisor slot;
+- one promotor slot;
+- one shared topic, language, daily supervisor, and promotor.
+
+Both students are still represented in the preference objective. Therefore a
+pair assigned its second choice contributes `2 students x rank 2 = 4` points.
+The final output contains one row per student with a shared `thesis_group_id`.
+
+## New ranked topic
+
+The ranked branch requires three different exact topic IDs and an ordered
+language list for each choice:
+
+| Column | Meaning |
+| --- | --- |
+| `topic_preference_1` | First-choice topic ID |
+| `topic_preference_1_languages` | Ordered language alternatives for choice 1 |
+| `topic_preference_2` | Second-choice topic ID |
+| `topic_preference_2_languages` | Ordered language alternatives for choice 2 |
+| `topic_preference_3` | Third-choice topic ID |
+| `topic_preference_3_languages` | Ordered language alternatives for choice 3 |
+
+Enter languages separated by semicolons, for example `Dutch; English`. The
+ordering matters. The topic-rank objective is optimized first across all
+students. Among allocations with the same optimal topic cost, the optimizer
+minimizes language rank.
+
+A topic-language combination is available only when a daily supervisor and a
+promotor can both be assigned within their eligibility, language, maximum
+capacity, and distinct-role constraints. If the first language is infeasible,
+the next listed language is considered. If none is feasible, the optimizer must
+use another topic choice or report that a complete allocation is impossible.
+
+## Self-proposed topic
+
+The self-proposed branch requires:
+
+| Column | Meaning |
+| --- | --- |
+| `self_proposed_thesis_title` | Proposed thesis title |
+| `self_proposed_thesis_description` | Substantive text used for matching |
+| `self_proposed_thesis_language` | Ordered acceptable language or languages |
+
+The proposed topic is fixed and does not consume capacity from `topics.xlsx`.
+Its description is used directly for supervisor matching. It still requires a
+feasible daily supervisor and promotor in one of the submitted languages.
+
+New Forms submissions do not use topic ID `9999`. Legacy canonical preference
+files using `9999` remain supported during the transition.
+
+## Carry-over topic
+
+The carry-over branch requires:
+
+| Column | Meaning |
+| --- | --- |
+| `carry_over_thesis_topic` | Existing topic title |
+| `carry_over_thesis_description` | Optional additional matching text |
+| `carry_over_thesis_language` | Ordered acceptable language or languages |
+| `daily_supervisor_email` | Current daily supervisor |
+| `thesis_promotor_email` | Current promotor |
+
+The topic is fixed and does not consume capacity from `topics.xlsx`. Valid
+current supervisors are retained with priority, subject to current eligibility,
+language, maximum capacity, and the distinct-role rule. An unavailable or
+ineligible named supervisor is reopened for matching and produces a warning.
+
+New Forms submissions do not use topic ID `9998` and do not require a previous
+final-assignment file. Legacy canonical preference files using `9998` remain
+supported during the transition.
+
+## Optimization order
+
+The Forms workflow uses lexicographic priorities:
+
+1. produce a complete allocation, unless partial results were explicitly
+   allowed;
+2. retain feasible named carry-over supervisors;
+3. minimize student-weighted topic rank cost;
+4. minimize student-weighted language rank;
+5. maximize assignments to eligible topic submitters;
+6. meet researcher minimum workload targets where feasible;
+7. maximize semantic fit with mild load balancing and deterministic tie-breaking.
+
+All topic capacities, maximum researcher capacities, language compatibility,
+role eligibility, and the distinct-role rule remain hard constraints.

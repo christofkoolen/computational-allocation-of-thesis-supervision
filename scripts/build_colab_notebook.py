@@ -137,10 +137,11 @@ def build_notebook() -> dict[str, object]:
         _markdown('''
         ### 2.a Workflow 1: thesis topic and supervision allocation
 
-        Use **Complete allocation** for the normal annual allocation. It first
-        separates any student whose three preference fields contain `9998`, then
-        allocates current-year topic preferences for everyone else, and finally
-        assigns open daily-supervisor and promotor roles.
+        Use **Complete allocation** for the normal annual allocation. The
+        recommended input is the direct Microsoft Forms export with the dedicated
+        ranked-topic, self-proposed-topic, carry-over, and dual-thesis sections.
+        The program recognizes those rows automatically and treats a dual pair as
+        one thesis for topic and supervision capacity.
 
         Upload `researchers`, `topics`, and `student_preferences` as usual. If one
         or more students use `9998` in any preference field, the previous
@@ -234,6 +235,8 @@ def build_notebook() -> dict[str, object]:
 
         def classify_upload(path):
             columns = normalized_columns(read_uploaded_table(path))
+            if {"thesis_type", "thesis_allocation_status"}.issubset(columns):
+                return "preferences"
             preference_columns = aliases_for("preference_1", PREFERENCE_ALIASES["preference_1"])
             assignment_specific = set()
             for canonical in ("daily_supervisor", "daily_supervisor_email", "promotor", "promotor_email"):
@@ -290,7 +293,7 @@ def build_notebook() -> dict[str, object]:
 
         if task == "Complete allocation":
             print(
-                "Select researchers, topics, and student preferences together. "
+                "Select researchers, topics, and the Microsoft Forms export or canonical student preferences together. "
                 "If any preference contains 9998, you may also select "
                 "previous_final_assignments when it is available."
             )
@@ -375,7 +378,7 @@ def build_notebook() -> dict[str, object]:
             report = json.loads((output_directory / "run_report.json").read_text(encoding="utf-8"))
             print(
                 f"Completed: {report['assigned_students']} student(s), "
-                f"including {report.get('carry_over_students', 0)} carry-over student(s) "
+                f"including {report.get('carry_over_theses', report.get('carry_over_students', 0))} carry-over thesis/theses "
                 f"and {report.get('manual_review_students', 0)} manual-review row(s); "
                 f"total preference cost {report['preference_cost']}."
             )

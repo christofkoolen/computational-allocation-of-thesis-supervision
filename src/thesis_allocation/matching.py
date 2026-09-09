@@ -196,7 +196,7 @@ def _attach_topic_context(
             continue
 
         assignment_source = clean_text(row.get("topic_assignment_source")).casefold()
-        if assignment_source == "carry_over":
+        if assignment_source in {"carry_over", "self_proposed"}:
             title = clean_text(row.get("assigned_topic"))
             description = clean_text(row.get("assigned_topic_description"))
             if not title:
@@ -305,9 +305,12 @@ def _assign_role(
             "assignments will be driven by capacity and submitter priority"
         )
 
+    load_rows = result
+    if "thesis_group_id" in load_rows.columns:
+        load_rows = load_rows.drop_duplicates("thesis_group_id", keep="first")
     current_load = (
-        result.loc[
-            result[spec.email_column].map(normalize_email).ne(""),
+        load_rows.loc[
+            load_rows[spec.email_column].map(normalize_email).ne(""),
             spec.email_column,
         ]
         .map(normalize_email)
@@ -512,6 +515,12 @@ def build_workload_summary(
 ) -> pd.DataFrame:
     """Build one auditable capacity and workload row per researcher."""
 
+    workload_assignments = assignments
+    if "thesis_group_id" in workload_assignments.columns:
+        workload_assignments = workload_assignments.drop_duplicates(
+            "thesis_group_id", keep="first"
+        )
+
     summary = researchers[
         [
             "full_name",
@@ -527,7 +536,7 @@ def build_workload_summary(
     for role_key, spec in ROLE_SPECS.items():
         del role_key
         counts = (
-            assignments[spec.email_column]
+            workload_assignments[spec.email_column]
             .map(normalize_email)
             .loc[lambda values: values.ne("")]
             .value_counts()

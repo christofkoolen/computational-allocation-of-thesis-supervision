@@ -22,27 +22,65 @@ The Colab notebook runs in the browser and does not require a local Python insta
 
 For a normal annual allocation:
 
-1. prepare `researchers.xlsx`, `topics.xlsx`, and `student_preferences.xlsx`;
-2. if continuing students use topic ID `9998` in any preference field, optionally prepare the previous `final_assignments.xlsx` file as `previous_final_assignments.xlsx`;
-3. open the Colab notebook;
-4. choose **Complete allocation**;
-5. select the desired options;
-6. upload the three required files and, when available, the optional previous-final-assignment file;
-7. download the resulting ZIP file.
+1. prepare `researchers.xlsx`, `topics.xlsx`, and the direct Microsoft Forms
+   response export;
+2. open the Colab notebook;
+3. choose **Complete allocation**;
+4. select the desired options;
+5. upload the three files;
+6. download the resulting ZIP file.
 
-The previous-final-assignment file is recommended for `9998` students because it allows the program to carry their previous topic, language, daily supervisor, and promotor forward automatically. If it is not supplied, the complete allocation still runs: unresolved `9998` students remain in the outputs and are marked `CARRY-OVER STUDENT - MANUAL REVIEW NEEDED`, with automatic topic and supervisor matching skipped for those students.
+No previous-final-assignment file is needed for carry-over rows from the new
+form because their topic, language, daily supervisor, and promotor are already
+collected in the dedicated section. A previous file is optional only for older
+canonical submissions that still use topic ID `9998`.
 
 The notebook can also reassign one student's supervisor or all assignments held by a departing researcher.
+
+### Recommended Microsoft Forms export
+
+The complete workflow now recognizes the direct response workbook from the
+branching submission form. No renaming or manual conversion is required. The
+two routing columns are:
+
+- `thesis_type`: individual or dual thesis;
+- `thesis_allocation_status`: new ranked topic, self-proposed topic, or
+  carry-over topic.
+
+The dedicated self-proposed and carry-over sections replace reserved topic IDs
+for new form submissions. Topic IDs `9998` and `9999` remain supported only so
+older canonical input files continue to run.
+
+A dual submission is one thesis allocation unit. It consumes one offered-topic
+place and one supervision slot for each role, and the two students receive the
+same topic, language, daily supervisor, and promotor. Its topic-rank cost is
+multiplied by two so both students are represented in the group-wide preference
+objective.
+
+Languages are ordered alternatives. For example, `Dutch; English` asks the
+optimizer to try Dutch before English. A language is feasible only when both a
+daily supervisor and a promotor can be assigned within their language and
+capacity constraints. If Dutch is infeasible but English is feasible, the topic
+may be allocated in English. If neither language is feasible, that topic choice
+cannot be allocated and the optimizer considers the other ranked topics.
+
+See [Microsoft Forms input](docs/MS_FORMS.md) for the complete column contract
+and allocation rules.
 
 ## What the pipeline does
 
 A complete run has three main stages:
 
 1. **Researcher enrichment**: optionally retrieve profile and publication text for researchers.
-2. **Topic allocation**: separate students whose row contains `9998` in any preference field, then assign current-year students to their ranked topic IDs while respecting topic capacity.
-3. **Supervision allocation**: preserve valid carry-over supervision up to current capacities, then assign open daily-supervisor and promotor roles using eligibility rules, workload constraints, topic-submitter priority, and semantic similarity.
+2. **Submission routing**: interpret each Forms row as ranked, self-proposed, or
+   carry-over, and combine a confirmed dual pair into one thesis group.
+3. **Joint allocation**: select topic, ordered language, daily supervisor, and
+   promotor together under topic, language, role, and capacity constraints.
 
-Topic allocation and supervision allocation are separate stages. A student first receives or carries forward a topic. The program then finds suitable supervisors for any open supervision roles.
+The Forms workflow solves these decisions jointly so a language or supervision
+capacity bottleneck can make the optimizer try another listed language or topic.
+The older canonical preference format keeps the legacy two-stage workflow for
+backwards compatibility.
 
 ## Input files
 
@@ -52,9 +90,9 @@ Required for Complete allocation:
 
 - `researchers.xlsx`
 - `topics.xlsx`
-- `student_preferences.xlsx`
+- the Microsoft Forms response export, or a legacy `student_preferences.xlsx`
 
-Optional fourth file:
+Optional fourth file for legacy `9998` submissions:
 
 - `previous_final_assignments.xlsx`
 
