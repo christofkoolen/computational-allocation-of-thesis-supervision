@@ -74,7 +74,6 @@ def normalize_forms_submissions(
         raise InputValidationError("student_preferences contains no submissions")
     required_columns = {
         "full_name",
-        "email",
         "student_number",
         "thesis_type",
         "thesis_allocation_status",
@@ -84,6 +83,16 @@ def normalize_forms_submissions(
         raise InputValidationError(
             "student_preferences is missing required column(s): "
             + ", ".join(missing)
+        )
+    if "email2" in result.columns:
+        student_email_column = "email2"
+    elif "email" in result.columns:
+        # Backwards compatibility for templates and submissions created before
+        # the dedicated student-email field was named ``email2``.
+        student_email_column = "email"
+    else:
+        raise InputValidationError(
+            "student_preferences is missing required column: email2"
         )
 
     for column in (
@@ -114,7 +123,7 @@ def normalize_forms_submissions(
     for index, source in result.iterrows():
         row_number = index + 2
         full_name = clean_text(source["full_name"])
-        email = normalize_email(source["email"])
+        email = normalize_email(source[student_email_column])
         student_number = clean_text(source["student_number"])
         try:
             submission_type = _submission_type(source["thesis_type"], row_number=row_number)
