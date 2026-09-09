@@ -52,7 +52,7 @@ language field because language eligibility belongs to researchers.
 | `topic_title` | Yes | Unique official topic title |
 | `topic_description` | No | Text included in semantic matching and copied into `assigned_topic_description` when allocated |
 | `submitter_email` | No | Researcher who proposed the topic; receives absolute supervision priority when eligible and within maximum capacity |
-| `capacity` | No | Number of students who may receive the topic; defaults to 1 when the column is omitted |
+| `capacity` | No | Number of theses that may receive the topic; defaults to 1 when the column or an individual cell is blank |
 
 Topic IDs `9998` and `9999` are reserved and must not appear in the topics file.
 `9998` means previous-year carry-over and `9999` means a student's own topic.

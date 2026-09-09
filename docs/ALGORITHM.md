@@ -80,8 +80,10 @@ offered topic, topic text combines the official title and description. For an
 own topic (`9999`), the student's `own_topic_description` is used directly as
 the topic text.
 
-The production backend creates normalized sentence-transformer embeddings and
-uses cosine similarity.
+The production backend uses `BAAI/bge-m3` to create normalized multilingual
+sentence-transformer embeddings and compares them with cosine similarity. Input
+texts are capped at 1,024 tokens and encoded in conservative batches of eight to
+keep inference practical on T4-class hardware.
 
 Daily supervisors and promotors are optimized as separate global flow problems.
 Existing assignments are fixed and counted against capacity. Each researcher

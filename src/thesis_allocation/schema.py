@@ -312,6 +312,8 @@ def normalize_topics(frame: pd.DataFrame) -> pd.DataFrame:
                 f"appear in the topics file; invalid row(s): {rows}"
             )
 
+    blank_capacity = result["capacity"].map(clean_text).eq("")
+    result.loc[blank_capacity, "capacity"] = 1
     issues.extend(_numeric_capacity(result, "capacity"))
     invalid_capacity = result["capacity"].lt(1)
     if invalid_capacity.any():

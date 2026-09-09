@@ -69,6 +69,9 @@ def build_notebook() -> dict[str, object]:
         controlled by the corresponding maximum-capacity columns: a maximum above
         `0` means eligible and `0` means ineligible. The minimum columns are workload
         targets, not role categories.
+
+        In `topics.xlsx`, a blank `capacity` cell means `1`. Enter a larger whole
+        number only when more than one thesis may receive that offered topic.
         '''),
         _code('''
         # @title 1. Download blank input files (optional)
@@ -142,7 +145,7 @@ def build_notebook() -> dict[str, object]:
         '''),
         _code('''
         # @title 2.a Workflow 1 options
-        matching_method = "Semantic matching (recommended)"  # @param ["Semantic matching (recommended)", "Lexical matching (fast)"]
+        matching_method = "Semantic matching (multilingual, recommended)"  # @param ["Semantic matching (multilingual, recommended)", "Lexical matching (fast)"]
         retrieve_researcher_profiles = False  # @param {type:"boolean"}
         allow_partial_results = False  # @param {type:"boolean"}
         allow_same_person_for_both_roles = False  # @param {type:"boolean"}
@@ -172,7 +175,9 @@ def build_notebook() -> dict[str, object]:
 
         After choosing the workflow and its options above, run the notebook. For
         complete allocation, upload the three standard files. Reassignment also
-        uses three files.
+        uses three files. The notebook requests a GPU runtime for multilingual
+        semantic matching, reports the assigned device, and explains how to select
+        a T4 GPU if Colab provides a CPU instead.
         '''),
         _code('''
         # @title 3.a Prepare the allocation program
@@ -189,7 +194,18 @@ def build_notebook() -> dict[str, object]:
             else f"computational-thesis-allocation @ {repository}"
         )
         subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-cache-dir", package], check=True)
-        print("The allocation program is ready.")
+        if matching_method.startswith("Semantic"):
+            import torch
+
+            if torch.cuda.is_available():
+                print(f"The allocation program is ready. GPU detected: {torch.cuda.get_device_name(0)}")
+            else:
+                print(
+                    "WARNING: No GPU was assigned. BGE-M3 will run on the CPU and may be slow. "
+                    "Choose Runtime > Change runtime type > T4 GPU, then run the notebook again."
+                )
+        else:
+            print("The allocation program is ready. Lexical matching uses the CPU.")
         ''', cell_id='setup', form=True),
         _code('''
         # @title 3.b Run selected workflow
@@ -392,6 +408,7 @@ def build_notebook() -> dict[str, object]:
     return {
         "cells": cells,
         "metadata": {
+            "accelerator": "GPU",
             "colab": {"name": NOTEBOOK_PATH.name, "provenance": []},
             "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
             "language_info": {"name": "python"},

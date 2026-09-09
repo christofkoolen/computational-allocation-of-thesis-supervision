@@ -5,6 +5,7 @@ import unittest
 import pandas as pd
 
 from thesis_allocation.errors import InputValidationError
+from thesis_allocation.schema import normalize_topics
 from thesis_allocation.topics import allocate_topics
 
 
@@ -29,6 +30,30 @@ class TopicAllocationTests(unittest.TestCase):
                 },
             ]
         )
+
+    def test_blank_topic_capacity_cells_default_to_one(self) -> None:
+        topics = pd.DataFrame(
+            [
+                {"topic_id": "A", "topic_title": "Alpha", "capacity": pd.NA},
+                {"topic_id": "B", "topic_title": "Beta", "capacity": ""},
+                {"topic_id": "C", "topic_title": "Gamma", "capacity": "   "},
+                {"topic_id": "D", "topic_title": "Delta", "capacity": 3},
+            ]
+        )
+
+        normalized = normalize_topics(topics)
+
+        self.assertEqual(normalized["capacity"].tolist(), [1, 1, 1, 3])
+
+    def test_explicit_zero_topic_capacity_remains_invalid(self) -> None:
+        topics = pd.DataFrame(
+            [{"topic_id": "A", "topic_title": "Alpha", "capacity": 0}]
+        )
+
+        with self.assertRaises(InputValidationError) as raised:
+            normalize_topics(topics)
+
+        self.assertIn("'capacity' must be at least 1", str(raised.exception))
 
     def test_finds_global_minimum_preference_cost(self) -> None:
         preferences = pd.DataFrame(

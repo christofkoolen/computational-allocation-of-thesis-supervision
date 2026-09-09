@@ -23,6 +23,9 @@ The notebook recognizes files by their columns, but using these names keeps the
 annual workflow predictable. The first notebook section can download blank
 versions of all three files.
 
+In `topics.xlsx`, a blank `capacity` cell defaults to 1. Explicit zero and
+negative capacities are invalid.
+
 `student_preferences.xlsx` contains the student's identity, thesis type, and
 allocation route. Depending on the route, it contains ranked topic and language
 preferences, a self-proposed topic, or carry-over details. A dual-thesis row also
@@ -95,9 +98,13 @@ assignments, workload summary, and reassignment log.
 
 ## Semantic matching and privacy
 
-Production matching uses `BAAI/bge-base-en-v1.5`. The lexical option is faster
-and useful for testing, but it is less effective at matching related concepts
-that use different wording.
+Production matching uses the multilingual `BAAI/bge-m3` model, with inputs
+capped at 1,024 tokens and a conservative batch size for reliable inference on
+T4-class hardware. The notebook requests a GPU runtime and reports the assigned
+device. Colab controls availability and may still provide a CPU, in which case
+the notebook displays instructions for selecting a T4 GPU. The lexical option is
+faster and useful for testing, but it is less effective at matching related
+concepts or text written in different languages.
 
 Uploaded files are processed on a temporary Google-hosted virtual machine. They
 are not mounted to Google Drive or printed as notebook tables. When finished,
