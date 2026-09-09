@@ -13,7 +13,12 @@ from thesis_allocation.errors import InfeasibleAssignmentError, InputValidationE
 from thesis_allocation.forms import expand_group_assignments, normalize_forms_submissions
 from thesis_allocation.languages import first_compatible_language, parse_languages
 from thesis_allocation.matching import ROLE_SPECS, build_workload_summary
-from thesis_allocation.schema import clean_text, normalize_researchers, normalize_topics
+from thesis_allocation.schema import (
+    clean_text,
+    normalize_email,
+    normalize_researchers,
+    normalize_topics,
+)
 from thesis_allocation.similarity import SimilarityBackend
 from thesis_allocation.topics import TopicResolver
 
@@ -50,6 +55,147 @@ class GroupedAllocationResult:
     self_proposed_theses: int
     dual_theses: int
     warnings: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class _EmailResolution:
+    submitted: str
+    resolved: str
+    method: str
+    score: float
+
+
+def _damerau_levenshtein(left: str, right: str) -> int:
+    """Return optimal-string-alignment edit distance, including transposition."""
+
+    rows = len(left) + 1
+    columns = len(right) + 1
+    distance = [[0] * columns for _ in range(rows)]
+    for row in range(rows):
+        distance[row][0] = row
+    for column in range(columns):
+        distance[0][column] = column
+    for row in range(1, rows):
+        for column in range(1, columns):
+            substitution = 0 if left[row - 1] == right[column - 1] else 1
+            distance[row][column] = min(
+                distance[row - 1][column] + 1,
+                distance[row][column - 1] + 1,
+                distance[row - 1][column - 1] + substitution,
+            )
+            if (
+                row > 1
+                and column > 1
+                and left[row - 1] == right[column - 2]
+                and left[row - 2] == right[column - 1]
+            ):
+                distance[row][column] = min(
+                    distance[row][column],
+                    distance[row - 2][column - 2] + 1,
+                )
+    return distance[-1][-1]
+
+
+def _email_similarity(left: str, right: str) -> tuple[int, float]:
+    distance = _damerau_levenshtein(left, right)
+    length = max(len(left), len(right), 1)
+    return distance, 1.0 - (distance / length)
+
+
+def _resolve_email(
+    submitted: object,
+    researcher_emails: list[str],
+) -> tuple[_EmailResolution | None, list[tuple[str, int, float]]]:
+    normalized = normalize_email(submitted)
+    if normalized in researcher_emails:
+        return _EmailResolution(clean_text(submitted), normalized, "exact", 1.0), []
+
+    candidates = sorted(
+        (
+            (candidate, *_email_similarity(normalized, candidate))
+            for candidate in researcher_emails
+        ),
+        key=lambda item: (item[1], -item[2], item[0]),
+    )
+    if not candidates:
+        return None, []
+    best_email, best_distance, best_score = candidates[0]
+    runner_up_score = candidates[1][2] if len(candidates) > 1 else -1.0
+    uniquely_close = (
+        best_distance <= 1
+        and best_score >= 0.94
+        and best_score - runner_up_score >= 0.03
+    )
+    if uniquely_close:
+        return (
+            _EmailResolution(
+                clean_text(submitted),
+                best_email,
+                "fuzzy_match",
+                round(best_score, 6),
+            ),
+            candidates[:3],
+        )
+    return None, candidates[:3]
+
+
+def _resolve_carry_over_emails(
+    groups: pd.DataFrame,
+    researchers: pd.DataFrame,
+) -> tuple[pd.DataFrame, list[str]]:
+    result = groups.copy()
+    researcher_emails = researchers["email"].tolist()
+    warnings: list[str] = []
+    issues: list[str] = []
+    fields = {
+        "daily_supervisor": (
+            "daily_supervisor_email",
+            "submitted_daily_supervisor_email",
+        ),
+        "thesis_promotor": (
+            "thesis_promotor_email",
+            "submitted_thesis_promotor_email",
+        ),
+    }
+    for group_index, group in result.iterrows():
+        if group["allocation_path"] != "carry_over":
+            continue
+        for label, (resolved_column, submitted_column) in fields.items():
+            submitted = group[submitted_column]
+            resolution, candidates = _resolve_email(submitted, researcher_emails)
+            method_column = f"{label}_email_resolution"
+            score_column = f"{label}_email_match_score"
+            if resolution is None:
+                suggestions = ", ".join(candidate[0] for candidate in candidates)
+                suffix = (
+                    f" Closest candidate(s): {suggestions}."
+                    if suggestions
+                    else " The researchers file contains no candidate emails."
+                )
+                issues.append(
+                    f"Carry-over thesis '{group['thesis_group_id']}': submitted "
+                    f"{label.replace('_', ' ')} email '{clean_text(submitted)}' "
+                    "does not have one uniquely close match in researchers.xlsx."
+                    f"{suffix} Correct the input before allocation."
+                )
+                result.at[group_index, method_column] = "manual_review"
+                result.at[group_index, score_column] = (
+                    round(candidates[0][2], 6) if candidates else 0.0
+                )
+                continue
+            result.at[group_index, resolved_column] = resolution.resolved
+            result.at[group_index, method_column] = resolution.method
+            result.at[group_index, score_column] = resolution.score
+            if resolution.method == "fuzzy_match":
+                warnings.append(
+                    f"Carry-over thesis '{group['thesis_group_id']}': corrected "
+                    f"submitted {label.replace('_', ' ')} email "
+                    f"'{resolution.submitted}' to '{resolution.resolved}' "
+                    f"(match score {resolution.score:.3f})"
+                )
+    if issues:
+        raise InputValidationError(issues)
+    return result, warnings
 
 
 def _candidate_text(researchers: pd.DataFrame) -> pd.Series:
@@ -164,6 +310,7 @@ def allocate_forms_submissions(
     researcher_table = normalize_researchers(researchers, require_capacities=True)
     researcher_table = researcher_table.sort_values("email").reset_index(drop=True)
     researcher_table["_profile_text"] = _candidate_text(researcher_table)
+    groups, email_warnings = _resolve_carry_over_emails(groups, researcher_table)
     options = _build_options(groups, topic_table)
 
     option_by_group: dict[int, list[int]] = {index: [] for index in groups.index}
@@ -336,7 +483,7 @@ def allocate_forms_submissions(
         stages.append(cost)
 
     carry_retention = objective()
-    warnings: list[str] = []
+    warnings: list[str] = list(email_warnings)
     researcher_by_email = {
         row["email"]: index for index, row in researcher_table.iterrows()
     }
