@@ -109,28 +109,38 @@ Carry-over supervisor emails are matched in three steps:
    high-confidence one-character insertion, deletion, replacement, or adjacent
    transposition.
 
-A fuzzy match also requires a clear margin over the second-best candidate. Weak
-or ambiguous matches stop the run and list the closest researcher emails so the
-input can be corrected. The program does not silently reassign a carry-over role
-when it cannot confidently identify the submitted researcher.
+A fuzzy match also requires a clear margin over the second-best candidate. If a
+match is weak or ambiguous, the run continues and assigns a replacement where
+feasible. The administrative result identifies the affected role explicitly as
+`MANUAL REVIEW NEEDED - UNKNOWN DAILY SUPERVISOR` or `MANUAL REVIEW NEEDED -
+UNKNOWN THESIS PROMOTOR`.
 
 The final assignment output records:
 
 | Column | Purpose |
 | --- | --- |
 | `submitted_daily_supervisor_email` | Exact submitted daily-supervisor value |
-| `daily_supervisor_email` | Resolved and ultimately assigned researcher email |
-| `daily_supervisor_email_resolution` | `exact` or `fuzzy_match` |
+| `resolved_daily_supervisor_email` | Exact or confidently corrected researcher email; blank when unknown |
+| `daily_supervisor_email` | Ultimately assigned daily-supervisor email |
+| `daily_supervisor_email_resolution` | `exact`, `fuzzy_match`, or `manual_review` |
 | `daily_supervisor_email_match_score` | Similarity score used for audit |
+| `daily_supervisor_review_status` | Role-specific manual-review label, otherwise blank |
+| `daily_supervisor_review_reason` | Submitted value, closest candidates, and assigned replacement |
 | `submitted_thesis_promotor_email` | Exact submitted promotor value |
-| `thesis_promotor_email` | Resolved submitted promotor email |
-| `thesis_promotor_email_resolution` | `exact` or `fuzzy_match` |
+| `resolved_thesis_promotor_email` | Exact or confidently corrected researcher email; blank when unknown |
+| `thesis_promotor_email` | Internal resolved request field; blank when unknown |
+| `thesis_promotor_email_resolution` | `exact`, `fuzzy_match`, or `manual_review` |
 | `thesis_promotor_email_match_score` | Similarity score used for audit |
 | `promotor_email` | Ultimately assigned promotor email |
+| `thesis_promotor_review_status` | Role-specific manual-review label, otherwise blank |
+| `thesis_promotor_review_reason` | Submitted value, closest candidates, and assigned replacement |
+| `carry_over_review_status` | Combined review labels when either or both roles need review |
+| `carry_over_review_reason` | Combined review details for the thesis group |
 
 After identification, ordinary eligibility rules still apply. A confidently
 identified researcher who is ineligible, language-incompatible, or beyond their
-maximum capacity is reopened for assignment with a warning.
+maximum capacity is reopened for assignment. If a different researcher is
+assigned, the role is marked `MANUAL REVIEW NEEDED - ... REASSIGNED`.
 
 ## Optimization order
 

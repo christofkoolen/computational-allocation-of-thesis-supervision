@@ -10,7 +10,6 @@ import pandas as pd
 from thesis_allocation.forms import normalize_forms_submissions
 from thesis_allocation.grouped import allocate_forms_submissions
 from thesis_allocation.cli import main
-from thesis_allocation.errors import InputValidationError
 from thesis_allocation.similarity import TfidfSimilarity
 
 
@@ -313,7 +312,7 @@ class GroupedAllocationTests(unittest.TestCase):
         )
         self.assertIn("corrected submitted daily supervisor email", result.warnings[0])
 
-    def test_ambiguous_carry_over_email_typo_requires_correction(self) -> None:
+    def test_ambiguous_daily_supervisor_is_reassigned_and_flagged(self) -> None:
         submissions = pd.DataFrame(
             [
                 {
@@ -337,15 +336,91 @@ class GroupedAllocationTests(unittest.TestCase):
             ]
         )
 
-        with self.assertRaises(InputValidationError) as raised:
-            allocate_forms_submissions(
-                submissions, self.topics, researchers, self.backend
-            )
+        result = allocate_forms_submissions(
+            submissions, self.topics, researchers, self.backend
+        )
+        assignment = result.group_assignments.iloc[0]
 
-        message = str(raised.exception)
-        self.assertIn("does not have one uniquely close match", message)
-        self.assertIn("alexander.smitha@kuleuven.be", message)
-        self.assertIn("alexander.smithb@kuleuven.be", message)
+        self.assertIn(
+            assignment["daily_supervisor_email"],
+            {"alexander.smitha@kuleuven.be", "alexander.smithb@kuleuven.be"},
+        )
+        self.assertEqual(
+            assignment["daily_supervisor_review_status"],
+            "MANUAL REVIEW NEEDED - UNKNOWN DAILY SUPERVISOR",
+        )
+        self.assertEqual(
+            assignment["daily_supervisor_email_resolution"], "manual_review"
+        )
+        self.assertEqual(
+            assignment["submitted_daily_supervisor_email"],
+            "alexander.smithx@kuleuven.be",
+        )
+        self.assertIn(
+            "alexander.smitha@kuleuven.be",
+            assignment["daily_supervisor_review_reason"],
+        )
+        self.assertIn(
+            "Automatically assigned daily supervisor replacement",
+            assignment["daily_supervisor_review_reason"],
+        )
+        self.assertEqual(result.manual_review_theses, 1)
+        self.assertTrue(
+            any(
+                "MANUAL REVIEW NEEDED - UNKNOWN DAILY SUPERVISOR" in warning
+                for warning in result.warnings
+            )
+        )
+
+    def test_unknown_promotor_is_reassigned_and_flagged(self) -> None:
+        submissions = pd.DataFrame(
+            [
+                {
+                    "full_name": "Carry",
+                    "email": "carry@example.org",
+                    "student_number": "r100",
+                    "thesis_type": "Individual thesis: I will write my thesis individually",
+                    "thesis_allocation_status": "Carry-over topic: continuing last year",
+                    "carry_over_thesis_topic": "Existing thesis",
+                    "carry_over_thesis_language": "English",
+                    "daily_supervisor_email": "daily@example.org",
+                    "thesis_promotor_email": "departed@old-university.example",
+                }
+            ]
+        )
+        researchers = pd.DataFrame(
+            [
+                researcher("Daily", "daily@example.org", "English", daily_max=1, promotor_max=0),
+                researcher("New promotor", "new.promotor@example.org", "English", daily_max=0, promotor_max=1),
+            ]
+        )
+
+        result = allocate_forms_submissions(
+            submissions, self.topics, researchers, self.backend
+        )
+        assignment = result.group_assignments.iloc[0]
+
+        self.assertEqual(assignment["promotor_email"], "new.promotor@example.org")
+        self.assertEqual(
+            assignment["thesis_promotor_review_status"],
+            "MANUAL REVIEW NEEDED - UNKNOWN THESIS PROMOTOR",
+        )
+        self.assertEqual(
+            assignment["thesis_promotor_email_resolution"], "manual_review"
+        )
+        self.assertEqual(
+            assignment["submitted_thesis_promotor_email"],
+            "departed@old-university.example",
+        )
+        self.assertIn(
+            "Automatically assigned thesis promotor replacement",
+            assignment["thesis_promotor_review_reason"],
+        )
+        self.assertEqual(result.manual_review_theses, 1)
+        self.assertEqual(
+            result.assignments.iloc[0]["thesis_promotor_review_status"],
+            "MANUAL REVIEW NEEDED - UNKNOWN THESIS PROMOTOR",
+        )
 
     def test_complete_cli_auto_detects_forms_export(self) -> None:
         submissions = pd.DataFrame(

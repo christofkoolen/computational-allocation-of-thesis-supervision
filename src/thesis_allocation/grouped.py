@@ -54,6 +54,7 @@ class GroupedAllocationResult:
     carry_over_theses: int
     self_proposed_theses: int
     dual_theses: int
+    manual_review_theses: int
     warnings: tuple[str, ...] = ()
 
 
@@ -63,6 +64,32 @@ class _EmailResolution:
     resolved: str
     method: str
     score: float
+
+
+MANUAL_REVIEW_NEEDED = "MANUAL REVIEW NEEDED"
+
+ROLE_REVIEW_LABELS = {
+    "daily_supervisor": "DAILY SUPERVISOR",
+    "thesis_promotor": "THESIS PROMOTOR",
+}
+
+ROLE_AUDIT_FIELDS = {
+    "daily_supervisor": (
+        "resolved_daily_supervisor_email",
+        "daily_supervisor",
+        "DAILY SUPERVISOR",
+    ),
+    "promotor": (
+        "resolved_thesis_promotor_email",
+        "thesis_promotor",
+        "THESIS PROMOTOR",
+    ),
+}
+
+
+def _append_review_reason(existing: object, reason: str) -> str:
+    current = clean_text(existing)
+    return f"{current} | {reason}" if current else reason
 
 
 def _damerau_levenshtein(left: str, right: str) -> int:
@@ -146,21 +173,30 @@ def _resolve_carry_over_emails(
     result = groups.copy()
     researcher_emails = researchers["email"].tolist()
     warnings: list[str] = []
-    issues: list[str] = []
+    result["carry_over_review_status"] = ""
+    result["carry_over_review_reason"] = ""
     fields = {
         "daily_supervisor": (
             "daily_supervisor_email",
             "submitted_daily_supervisor_email",
+            "resolved_daily_supervisor_email",
         ),
         "thesis_promotor": (
             "thesis_promotor_email",
             "submitted_thesis_promotor_email",
+            "resolved_thesis_promotor_email",
         ),
     }
+    for label, (_, _, audit_column) in fields.items():
+        result[audit_column] = ""
+        result[f"{label}_email_resolution"] = ""
+        result[f"{label}_email_match_score"] = pd.NA
+        result[f"{label}_review_status"] = ""
+        result[f"{label}_review_reason"] = ""
     for group_index, group in result.iterrows():
         if group["allocation_path"] != "carry_over":
             continue
-        for label, (resolved_column, submitted_column) in fields.items():
+        for label, (resolved_column, submitted_column, audit_column) in fields.items():
             submitted = group[submitted_column]
             resolution, candidates = _resolve_email(submitted, researcher_emails)
             method_column = f"{label}_email_resolution"
@@ -172,18 +208,41 @@ def _resolve_carry_over_emails(
                     if suggestions
                     else " The researchers file contains no candidate emails."
                 )
-                issues.append(
-                    f"Carry-over thesis '{group['thesis_group_id']}': submitted "
-                    f"{label.replace('_', ' ')} email '{clean_text(submitted)}' "
-                    "does not have one uniquely close match in researchers.xlsx."
-                    f"{suffix} Correct the input before allocation."
+                reason = (
+                    f"Submitted {label.replace('_', ' ')} email "
+                    f"'{clean_text(submitted)}' could not be matched confidently in "
+                    "researchers.xlsx. The researcher may have left or the address may "
+                    f"be incorrect.{suffix} A replacement was assigned where feasible."
                 )
+                review_status = (
+                    f"{MANUAL_REVIEW_NEEDED} - UNKNOWN {ROLE_REVIEW_LABELS[label]}"
+                )
+                result.at[group_index, resolved_column] = ""
+                result.at[group_index, audit_column] = ""
                 result.at[group_index, method_column] = "manual_review"
                 result.at[group_index, score_column] = (
                     round(candidates[0][2], 6) if candidates else 0.0
                 )
+                result.at[group_index, f"{label}_review_status"] = review_status
+                result.at[group_index, f"{label}_review_reason"] = reason
+                result.at[group_index, "carry_over_review_status"] = (
+                    _append_review_reason(
+                        result.at[group_index, "carry_over_review_status"],
+                        review_status,
+                    )
+                )
+                result.at[group_index, "carry_over_review_reason"] = (
+                    _append_review_reason(
+                        result.at[group_index, "carry_over_review_reason"], reason
+                    )
+                )
+                warnings.append(
+                    f"Carry-over thesis '{group['thesis_group_id']}': "
+                    f"{review_status}. {reason}"
+                )
                 continue
             result.at[group_index, resolved_column] = resolution.resolved
+            result.at[group_index, audit_column] = resolution.resolved
             result.at[group_index, method_column] = resolution.method
             result.at[group_index, score_column] = resolution.score
             if resolution.method == "fuzzy_match":
@@ -193,8 +252,6 @@ def _resolve_carry_over_emails(
                     f"'{resolution.submitted}' to '{resolution.resolved}' "
                     f"(match score {resolution.score:.3f})"
                 )
-    if issues:
-        raise InputValidationError(issues)
     return result, warnings
 
 
@@ -492,18 +549,15 @@ def allocate_forms_submissions(
         if option.source != "carry_over":
             continue
         desired = {
-            "daily_supervisor": group["daily_supervisor_email"],
-            "promotor": group["thesis_promotor_email"],
+            "daily_supervisor": group["resolved_daily_supervisor_email"],
+            "promotor": group["resolved_thesis_promotor_email"],
         }
         for role, email in desired.items():
+            if not email:
+                continue
             researcher_index = researcher_by_email.get(email)
             edge = role_edges[role].get((option_index, researcher_index)) if researcher_index is not None else None
-            if edge is None:
-                warnings.append(
-                    f"Carry-over thesis '{group['thesis_group_id']}': requested {role.replace('_', ' ')} "
-                    f"'{email}' is unavailable, ineligible, or language-incompatible and will be reassigned"
-                )
-            else:
+            if edge is not None:
                 carry_retention[edge] = -1
     stages.append(carry_retention)
 
@@ -649,11 +703,8 @@ def allocate_forms_submissions(
             row[spec.name_column] = researcher["full_name"]
             row[spec.email_column] = researcher["email"]
             row[spec.score_column] = round(similarities[(option_index, researcher_index)], 6)
-            desired = (
-                group["daily_supervisor_email"]
-                if role == "daily_supervisor"
-                else group["thesis_promotor_email"]
-            )
+            audit_email_column, review_prefix, review_label = ROLE_AUDIT_FIELDS[role]
+            desired = clean_text(group[audit_email_column])
             if option.source == "carry_over" and researcher["email"] == desired:
                 source = "carry_over"
             elif option.submitter_email and researcher["email"] == option.submitter_email:
@@ -661,9 +712,62 @@ def allocate_forms_submissions(
             else:
                 source = "semantic"
             row[spec.source_column] = source
+            if option.source != "carry_over":
+                continue
+            if not desired and clean_text(row[f"{review_prefix}_review_status"]):
+                replacement = (
+                    f"Automatically assigned {review_label.lower()} replacement: "
+                    f"'{researcher['email']}'."
+                )
+                row[f"{review_prefix}_review_reason"] = _append_review_reason(
+                    row[f"{review_prefix}_review_reason"], replacement
+                )
+                row["carry_over_review_reason"] = _append_review_reason(
+                    row["carry_over_review_reason"], replacement
+                )
+            elif desired and researcher["email"] != desired:
+                review_status = (
+                    f"{MANUAL_REVIEW_NEEDED} - {review_label} REASSIGNED"
+                )
+                reason = (
+                    f"Resolved {review_label.lower()} '{desired}' could not be retained "
+                    "under the current eligibility, language, distinct-role, and maximum-"
+                    f"capacity constraints. Assigned replacement: '{researcher['email']}'."
+                )
+                row[f"{review_prefix}_review_status"] = review_status
+                row[f"{review_prefix}_review_reason"] = reason
+                row["carry_over_review_status"] = _append_review_reason(
+                    row["carry_over_review_status"], review_status
+                )
+                row["carry_over_review_reason"] = _append_review_reason(
+                    row["carry_over_review_reason"], reason
+                )
+                warnings.append(
+                    f"Carry-over thesis '{group['thesis_group_id']}': "
+                    f"{review_status}. {reason}"
+                )
         group_rows.append(row)
 
     group_assignments = pd.DataFrame(group_rows)
+    leading_columns = [
+        "full_name",
+        "email",
+        "student_number",
+        "thesis_group_id",
+        "carry_over_review_status",
+        "daily_supervisor_review_status",
+        "thesis_promotor_review_status",
+        "daily_supervisor_review_reason",
+        "thesis_promotor_review_reason",
+        "carry_over_review_reason",
+    ]
+    group_assignments = group_assignments.loc[
+        :,
+        [
+            *[column for column in leading_columns if column in group_assignments],
+            *[column for column in group_assignments if column not in leading_columns],
+        ],
+    ]
     assigned_groups = group_assignments["topic_assignment_source"].ne("unassigned")
     if (~assigned_groups).any():
         warnings.append(
@@ -703,6 +807,14 @@ def allocate_forms_submissions(
         ),
         dual_theses=int(
             (group_assignments.loc[assigned_groups, "submission_type"] == "dual").sum()
+        ),
+        manual_review_theses=int(
+            group_assignments["carry_over_review_status"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .ne("")
+            .sum()
         ),
         warnings=tuple(dict.fromkeys(warnings)),
     )
