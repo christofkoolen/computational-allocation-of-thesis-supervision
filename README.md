@@ -111,7 +111,7 @@ Common fields:
 | Column | Purpose |
 | --- | --- |
 | `full_name` | Primary student's name |
-| `email` | Primary student's unique email |
+| `email2` | Primary student's unique email; used instead of any automatically recorded account-email column |
 | `student_number` | Primary student's number |
 | `thesis_type` | Individual or dual thesis |
 | `thesis_allocation_status` | Ranked, self-proposed, or carry-over route |

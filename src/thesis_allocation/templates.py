@@ -37,7 +37,7 @@ TEMPLATE_COLUMNS = {
     ],
     "student_preferences.xlsx": [
         "full_name",
-        "email",
+        "email2",
         "student_number",
         "thesis_type",
         "partner_full_name",
