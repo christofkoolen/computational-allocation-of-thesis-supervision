@@ -16,6 +16,21 @@ It does not require a GitHub account or access token.
 The first numbered section can generate the three blank current-year input
 workbooks. Skip this section when the files are already prepared.
 
+For the new annual workflow, upload the direct Microsoft Forms response export
+instead of the blank `student_preferences.xlsx` template. The notebook recognizes
+the export by `thesis_type` and `thesis_allocation_status`. Dedicated form
+sections supply ranked preferences, self-proposed topics, carry-over topics, and
+dual-pair details. See [Microsoft Forms input](MS_FORMS.md).
+
+Languages in the Forms export are ordered alternatives. If the first listed
+language has insufficient supervision capacity, the optimizer can use the next
+language for that topic. If no listed language is feasible, it considers other
+ranked topic choices. A dual pair consumes one topic place and one slot per
+supervision role.
+
+The reserved `9998` and `9999` rules below apply only to older canonical
+`student_preferences` files and remain available for backwards compatibility.
+
 The student-preference template contains three preference columns for exact
 thesis topic IDs. For normal current-year allocation, students provide all three.
 The IDs do not have to be different. Repeated preferences are accepted and do

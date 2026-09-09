@@ -15,6 +15,8 @@ from thesis_allocation.carryover import (
     restore_carry_over_topic_display,
 )
 from thesis_allocation.errors import ThesisAllocationError
+from thesis_allocation.forms import is_forms_export
+from thesis_allocation.grouped import allocate_forms_submissions
 from thesis_allocation.io import read_table, write_table
 from thesis_allocation.matching import match_supervisors
 from thesis_allocation.replacement import reassign_supervision
@@ -250,13 +252,88 @@ def _command_run(args: argparse.Namespace) -> None:
     )
 
     topic_table = read_table(args.topics)
+    preference_table = read_table(args.preferences)
+    if is_forms_export(preference_table):
+        backend = create_similarity_backend(args.backend, model_name=args.model)
+        grouped = allocate_forms_submissions(
+            preference_table,
+            topic_table,
+            researcher_table,
+            backend,
+            duplicate_policy=args.duplicate_policy,
+            allow_partial=args.allow_partial,
+            enforce_distinct_roles=not args.allow_same_person,
+        )
+        topics_path = write_table(
+            grouped.group_assignments,
+            output_directory / "topic_assignments.xlsx",
+        )
+        group_path = write_table(
+            grouped.group_assignments,
+            output_directory / "thesis_group_assignments.xlsx",
+        )
+        final_path = write_table(
+            grouped.assignments,
+            output_directory / "final_assignments.xlsx",
+        )
+        shareable_path = write_table(
+            grouped.assignments.loc[:, list(SHAREABLE_ASSIGNMENT_COLUMNS)].copy(),
+            output_directory / "final_assignments_shareable.xlsx",
+        )
+        summary_path = write_table(
+            grouped.summary,
+            output_directory / "supervisor_summary.xlsx",
+        )
+        form_warnings = list(grouped.warnings)
+        if args.previous_final_assignments:
+            form_warnings.append(
+                "previous_final_assignments was ignored because the Microsoft "
+                "Forms export already contains dedicated carry-over fields"
+            )
+        warnings = tuple(dict.fromkeys([*scrape_warnings, *form_warnings]))
+        report = {
+            "input_format": "microsoft_forms",
+            "assigned_students": grouped.assigned_students,
+            "assigned_theses": grouped.assigned_theses,
+            "dual_theses": grouped.dual_theses,
+            "carry_over_theses": grouped.carry_over_theses,
+            "self_proposed_theses": grouped.self_proposed_theses,
+            "preference_cost": grouped.preference_cost,
+            "warnings": list(warnings),
+            "outputs": {
+                "researchers": str(researchers_path),
+                "topic_assignments": str(topics_path),
+                "thesis_group_assignments": str(group_path),
+                "final_assignments": str(final_path),
+                "final_assignments_shareable": str(shareable_path),
+                "supervisor_summary": str(summary_path),
+            },
+        }
+        report_path = output_directory / "run_report.json"
+        report_path.write_text(
+            json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        _print_warnings(warnings)
+        for path in (
+            researchers_path,
+            topics_path,
+            group_path,
+            final_path,
+            shareable_path,
+            summary_path,
+            report_path,
+        ):
+            print(path)
+        return
+
     previous_assignments = (
         read_table(args.previous_final_assignments)
         if args.previous_final_assignments
         else None
     )
     allocation = allocate_annual_topics(
-        read_table(args.preferences),
+        preference_table,
         topic_table,
         researcher_table,
         previous_assignments,

@@ -10,7 +10,38 @@ A failed request does not remove a researcher. The output records a status for
 each retrieval and emits a warning, allowing the input to be corrected and run
 again.
 
-## 2. Topic allocation
+## 2. Microsoft Forms group allocation
+
+The recommended Forms workflow uses one mixed-integer optimization model for
+topic, language, daily-supervisor, and promotor decisions. An individual is one
+thesis group. A confirmed dual pair is also one thesis group, with two student
+members.
+
+Each ranked topic and each ordered language for that topic creates a possible
+group option. Self-proposed and carry-over rows instead create fixed topic
+options from their dedicated form fields. Selecting an offered topic consumes
+one unit of its topic capacity regardless of whether the group contains one or
+two students. Selecting supervisors consumes one thesis slot per role.
+
+The objective is lexicographic:
+
+1. retain feasible named carry-over roles;
+2. minimize topic rank multiplied by group size;
+3. minimize language rank multiplied by group size;
+4. maximize eligible topic-submitter assignments;
+5. minimize unmet researcher workload targets;
+6. minimize semantic mismatch with a mild incremental load-balancing cost.
+
+The optimizer fixes the optimum after each stage before solving the next stage.
+Consequently, a later preference can never worsen an earlier priority. Topic
+capacity, researcher maximum capacity, role eligibility, language compatibility,
+and distinct daily-supervisor/promotor roles are hard constraints throughout.
+
+Because topic and supervision choices are in the same model, a topic-language
+option with insufficient supervision capacity is unavailable. The next language
+listed for that topic can then be selected, or another ranked topic can be used.
+
+## 3. Legacy canonical topic allocation
 
 Each student, offered topic, and capacity is represented in a flow network:
 
@@ -32,7 +63,7 @@ are never used to identify a preference. There is no fuzzy or approximate title
 matching. Topic ID `9999` is reserved for a student's own topic and requires a
 short `own_topic_description`.
 
-## 3. Supervisor matching
+## 4. Legacy canonical supervisor matching
 
 Researcher text combines the profile description and publication list. For an
 offered topic, topic text combines the official title and description. For an
@@ -91,7 +122,7 @@ Existing carry-over supervisors and promotors are validated against the selected
 The output records the raw semantic match score and whether an assignment came
 from a carry-over, topic-submitter priority, or general semantic matching.
 
-## 4. Reassignment
+## 5. Reassignment
 
 The reassignment command clears only the selected student's role or the
 assignments held by a selected departing researcher. All other assignments
