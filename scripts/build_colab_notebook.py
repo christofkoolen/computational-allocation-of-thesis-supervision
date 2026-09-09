@@ -366,7 +366,7 @@ def build_notebook() -> dict[str, object]:
             print(
                 f"Completed: {report['assigned_students']} student(s), "
                 f"including {report.get('carry_over_theses', report.get('carry_over_students', 0))} carry-over thesis group(s) "
-                f"and {report.get('manual_review_students', 0)} manual-review group(s); "
+                f"and {report.get('manual_review_theses', report.get('manual_review_students', 0))} manual-review group(s); "
                 f"total preference cost {report['preference_cost']}."
             )
             for warning in report["warnings"]:

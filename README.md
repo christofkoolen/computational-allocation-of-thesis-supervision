@@ -170,9 +170,12 @@ they remain eligible, language-compatible, and within maximum capacity.
 
 Supervisor emails are matched exactly after capitalization and surrounding-space
 normalization. A one-character typo is corrected automatically only when one
-researcher is a uniquely strong match. Weak or ambiguous matches stop with the
-closest candidates listed for correction. The submitted values and resolution
-details remain in the outputs.
+researcher is a uniquely strong match. If an address has no confident match,
+the run continues and assigns a replacement where feasible. The administrative
+output marks the affected role as `MANUAL REVIEW NEEDED - UNKNOWN DAILY
+SUPERVISOR` or `MANUAL REVIEW NEEDED - UNKNOWN THESIS PROMOTOR`. The submitted
+values, closest candidates, replacement, and resolution details remain in the
+outputs.
 
 See [student preference input](docs/STUDENT_PREFERENCES.md) for the complete
 column contract.

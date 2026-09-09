@@ -298,6 +298,7 @@ def _command_run(args: argparse.Namespace) -> None:
             "dual_theses": grouped.dual_theses,
             "carry_over_theses": grouped.carry_over_theses,
             "self_proposed_theses": grouped.self_proposed_theses,
+            "manual_review_theses": grouped.manual_review_theses,
             "preference_cost": grouped.preference_cost,
             "warnings": list(warnings),
             "outputs": {

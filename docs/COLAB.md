@@ -89,7 +89,9 @@ assignments, workload summary, and reassignment log.
   option is enabled.
 - Eligible topic submitters receive supervision priority up to capacity.
 - Carry-over supervisor emails are recovered from a small typo only when one
-  researcher is a uniquely strong match. Ambiguous matches stop for correction.
+  researcher is a uniquely strong match. Unknown or ambiguous addresses are
+  reassigned where feasible and marked for role-specific manual review in the
+  administrative results.
 
 ## Semantic matching and privacy
 
