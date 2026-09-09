@@ -43,7 +43,7 @@ def ranked_submission(
 ) -> dict[str, object]:
     row: dict[str, object] = {
         "full_name": name,
-        "email": email,
+        "email2": email,
         "student_number": "r123",
         "thesis_type": (
             "Dual thesis: I will write my thesis together with one other student"
@@ -74,6 +74,19 @@ def ranked_submission(
 
 
 class FormsNormalizationTests(unittest.TestCase):
+    def test_uses_dedicated_email2_instead_of_recorded_email(self) -> None:
+        row = ranked_submission(
+            "Student",
+            "Student.Typed@Example.org ",
+            ("1", "2", "3"),
+            ("English", "English", "English"),
+        )
+        row["Email"] = "recorded-account@example.org"
+
+        normalized = normalize_forms_submissions(pd.DataFrame([row]))
+
+        self.assertEqual(normalized.loc[0, "email"], "student.typed@example.org")
+
     def test_routes_dedicated_sections_without_reserved_topic_ids(self) -> None:
         rows = [
             ranked_submission(
@@ -82,7 +95,7 @@ class FormsNormalizationTests(unittest.TestCase):
             ),
             {
                 "full_name": "Own",
-                "email": "own@example.org",
+                "email2": "own@example.org",
                 "student_number": "r124",
                 "thesis_type": "Individual thesis: I will write my thesis individually",
                 "thesis_allocation_status": "Self-proposed topic: I propose my own",
@@ -92,7 +105,7 @@ class FormsNormalizationTests(unittest.TestCase):
             },
             {
                 "full_name": "Carry",
-                "email": "carry@example.org",
+                "email2": "carry@example.org",
                 "student_number": "r125",
                 "thesis_type": "Individual thesis: I will write my thesis individually",
                 "thesis_allocation_status": "Carry-over topic: continuing last year",
@@ -197,7 +210,7 @@ class GroupedAllocationTests(unittest.TestCase):
             [
                 {
                     "full_name": "Carry",
-                    "email": "carry@example.org",
+                    "email2": "carry@example.org",
                     "student_number": "r100",
                     "thesis_type": "Individual thesis: I will write my thesis individually",
                     "thesis_allocation_status": "Carry-over topic: continuing last year",
@@ -276,7 +289,7 @@ class GroupedAllocationTests(unittest.TestCase):
             [
                 {
                     "full_name": "Carry",
-                    "email": "carry@example.org",
+                    "email2": "carry@example.org",
                     "student_number": "r100",
                     "thesis_type": "Individual thesis: I will write my thesis individually",
                     "thesis_allocation_status": "Carry-over topic: continuing last year",
@@ -317,7 +330,7 @@ class GroupedAllocationTests(unittest.TestCase):
             [
                 {
                     "full_name": "Carry",
-                    "email": "carry@example.org",
+                    "email2": "carry@example.org",
                     "student_number": "r100",
                     "thesis_type": "Individual thesis: I will write my thesis individually",
                     "thesis_allocation_status": "Carry-over topic: continuing last year",
@@ -377,7 +390,7 @@ class GroupedAllocationTests(unittest.TestCase):
             [
                 {
                     "full_name": "Carry",
-                    "email": "carry@example.org",
+                    "email2": "carry@example.org",
                     "student_number": "r100",
                     "thesis_type": "Individual thesis: I will write my thesis individually",
                     "thesis_allocation_status": "Carry-over topic: continuing last year",
