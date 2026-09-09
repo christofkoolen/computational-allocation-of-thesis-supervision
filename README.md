@@ -92,10 +92,11 @@ One row represents one offered thesis topic.
 | `topic_title` | Official topic title |
 | `topic_description` | Description used for semantic matching |
 | `submitter_email` | Researcher who proposed the topic |
-| `capacity` | Maximum number of theses that may receive the topic |
+| `capacity` | Maximum number of theses that may receive the topic; a blank cell defaults to 1 |
 
 Students select topics using exact `topic_id` values. Titles are display text and
-are not used as identifiers. Topic capacity is a hard constraint.
+are not used as identifiers. Topic capacity is a hard constraint. A missing
+`capacity` column or an individual blank capacity cell defaults to 1.
 
 An eligible topic submitter has absolute supervision priority for that topic up
 to the researcher's role capacity. Language compatibility, role eligibility,
@@ -254,8 +255,9 @@ thesis-allocation run \
 ```
 
 Remove `--skip-scrape` to retrieve missing researcher profile and publication
-text from configured URLs. Use `--backend tfidf` for fast offline lexical
-matching.
+text from configured URLs. Semantic matching defaults to the multilingual
+`BAAI/bge-m3` model, using 1,024-token inputs and batches of eight. Use
+`--backend tfidf` for fast offline lexical matching.
 
 ## Reassign supervision
 

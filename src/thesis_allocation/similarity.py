@@ -9,7 +9,9 @@ import numpy as np
 from thesis_allocation.errors import ThesisAllocationError
 
 
-DEFAULT_EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
+DEFAULT_EMBEDDING_MODEL = "BAAI/bge-m3"
+DEFAULT_EMBEDDING_BATCH_SIZE = 8
+MAX_EMBEDDING_SEQUENCE_LENGTH = 1_024
 
 
 class SimilarityBackend(Protocol):
@@ -58,7 +60,17 @@ class TfidfSimilarity:
 class SentenceTransformerSimilarity:
     """Semantic similarity based on normalized sentence embeddings."""
 
-    def __init__(self, model_name: str = DEFAULT_EMBEDDING_MODEL):
+    def __init__(
+        self,
+        model_name: str = DEFAULT_EMBEDDING_MODEL,
+        *,
+        batch_size: int = DEFAULT_EMBEDDING_BATCH_SIZE,
+        max_sequence_length: int = MAX_EMBEDDING_SEQUENCE_LENGTH,
+    ):
+        if batch_size < 1:
+            raise ValueError("batch_size must be at least 1")
+        if max_sequence_length < 1:
+            raise ValueError("max_sequence_length must be at least 1")
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:
@@ -67,6 +79,12 @@ class SentenceTransformerSimilarity:
                 "Install the project with: pip install -e '.[semantic]'"
             ) from exc
         self.model = SentenceTransformer(model_name)
+        model_limit = getattr(self.model, "max_seq_length", None)
+        if isinstance(model_limit, int) and model_limit > 0:
+            self.model.max_seq_length = min(model_limit, max_sequence_length)
+        else:
+            self.model.max_seq_length = max_sequence_length
+        self.batch_size = batch_size
 
     def score(
         self,
@@ -77,11 +95,13 @@ class SentenceTransformerSimilarity:
             return np.zeros((len(queries), len(candidates)), dtype=float)
         query_embeddings = self.model.encode(
             queries,
+            batch_size=self.batch_size,
             normalize_embeddings=True,
             show_progress_bar=False,
         )
         candidate_embeddings = self.model.encode(
             candidates,
+            batch_size=self.batch_size,
             normalize_embeddings=True,
             show_progress_bar=False,
         )

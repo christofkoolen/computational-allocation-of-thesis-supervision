@@ -115,6 +115,26 @@ class ColabNotebookTests(unittest.TestCase):
         self.assertIn("files.download(", code)
         self.assertNotIn("drive.mount", code)
 
+    def test_notebook_requests_gpu_and_reports_the_assigned_device(self) -> None:
+        self.assertEqual(self.notebook["metadata"]["accelerator"], "GPU")
+        setup_cell = next(
+            cell
+            for cell in self.notebook["cells"]
+            if cell.get("metadata", {}).get("id") == "setup"
+        )
+        source = "".join(setup_cell["source"])
+        self.assertIn("torch.cuda.is_available()", source)
+        self.assertIn("torch.cuda.get_device_name(0)", source)
+        self.assertIn("T4 GPU", source)
+
+    def test_notebook_explains_blank_topic_capacity_default(self) -> None:
+        markdown = "\n".join(
+            "".join(cell["source"])
+            for cell in self.notebook["cells"]
+            if cell["cell_type"] == "markdown"
+        )
+        self.assertIn("blank `capacity` cell means `1`", markdown)
+
     def test_complete_notebook_workflow_produces_results_zip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
