@@ -43,7 +43,7 @@ def ranked_submission(
 ) -> dict[str, object]:
     row: dict[str, object] = {
         "full_name": name,
-        "email2": email,
+        "Email": email,
         "student_number": "r123",
         "thesis_type": (
             "Dual thesis: I will write my thesis together with one other student"
@@ -74,18 +74,20 @@ def ranked_submission(
 
 
 class FormsNormalizationTests(unittest.TestCase):
-    def test_uses_dedicated_email2_instead_of_recorded_email(self) -> None:
+    def test_uses_Email_instead_of_email2(self) -> None:
         row = ranked_submission(
             "Student",
-            "Student.Typed@Example.org ",
+            "Recorded.Account@Example.org ",
             ("1", "2", "3"),
             ("English", "English", "English"),
         )
-        row["Email"] = "recorded-account@example.org"
+        row["email2"] = "typed-address@example.org"
 
         normalized = normalize_forms_submissions(pd.DataFrame([row]))
 
-        self.assertEqual(normalized.loc[0, "email"], "student.typed@example.org")
+        self.assertEqual(normalized.loc[0, "email"], "recorded.account@example.org")
+        self.assertEqual(normalized.loc[0, "thesis_type"], "individual")
+        self.assertEqual(normalized.loc[0, "thesis_allocation_status"], "new topic")
 
     def test_routes_dedicated_sections_without_reserved_topic_ids(self) -> None:
         rows = [
@@ -95,7 +97,7 @@ class FormsNormalizationTests(unittest.TestCase):
             ),
             {
                 "full_name": "Own",
-                "email2": "own@example.org",
+                "Email": "own@example.org",
                 "student_number": "r124",
                 "thesis_type": "Individual thesis: I will write my thesis individually",
                 "thesis_allocation_status": "Self-proposed topic: I propose my own",
@@ -105,7 +107,7 @@ class FormsNormalizationTests(unittest.TestCase):
             },
             {
                 "full_name": "Carry",
-                "email2": "carry@example.org",
+                "Email": "carry@example.org",
                 "student_number": "r125",
                 "thesis_type": "Individual thesis: I will write my thesis individually",
                 "thesis_allocation_status": "Carry-over topic: continuing last year",
@@ -121,6 +123,10 @@ class FormsNormalizationTests(unittest.TestCase):
         self.assertEqual(
             normalized["allocation_path"].tolist(),
             ["ranked", "self_proposed", "carry_over"],
+        )
+        self.assertEqual(
+            normalized["thesis_allocation_status"].tolist(),
+            ["new topic", "self-proposed topic", "carry-over topic"],
         )
         self.assertNotIn("9998", normalized.to_string())
         self.assertNotIn("9999", normalized.to_string())
@@ -210,7 +216,7 @@ class GroupedAllocationTests(unittest.TestCase):
             [
                 {
                     "full_name": "Carry",
-                    "email2": "carry@example.org",
+                    "Email": "carry@example.org",
                     "student_number": "r100",
                     "thesis_type": "Individual thesis: I will write my thesis individually",
                     "thesis_allocation_status": "Carry-over topic: continuing last year",
@@ -289,7 +295,7 @@ class GroupedAllocationTests(unittest.TestCase):
             [
                 {
                     "full_name": "Carry",
-                    "email2": "carry@example.org",
+                    "Email": "carry@example.org",
                     "student_number": "r100",
                     "thesis_type": "Individual thesis: I will write my thesis individually",
                     "thesis_allocation_status": "Carry-over topic: continuing last year",
@@ -330,7 +336,7 @@ class GroupedAllocationTests(unittest.TestCase):
             [
                 {
                     "full_name": "Carry",
-                    "email2": "carry@example.org",
+                    "Email": "carry@example.org",
                     "student_number": "r100",
                     "thesis_type": "Individual thesis: I will write my thesis individually",
                     "thesis_allocation_status": "Carry-over topic: continuing last year",
@@ -390,7 +396,7 @@ class GroupedAllocationTests(unittest.TestCase):
             [
                 {
                     "full_name": "Carry",
-                    "email2": "carry@example.org",
+                    "Email": "carry@example.org",
                     "student_number": "r100",
                     "thesis_type": "Individual thesis: I will write my thesis individually",
                     "thesis_allocation_status": "Carry-over topic: continuing last year",
@@ -436,16 +442,24 @@ class GroupedAllocationTests(unittest.TestCase):
         )
 
     def test_complete_cli_auto_detects_forms_export(self) -> None:
-        submissions = pd.DataFrame(
-            [
-                ranked_submission(
-                    "Student",
-                    "student@example.org",
-                    ("A", "B", "C"),
-                    ("English", "English", "English"),
-                )
-            ]
+        submission = ranked_submission(
+            "Primary Student",
+            "primary@example.org",
+            ("A", "B", "C"),
+            ("English", "English", "English"),
+            partner=("Partner Student", "partner@example.org", "r456"),
         )
+        submission.update(
+            {
+                "ID": 1,
+                "Start time": "2026-09-10 10:00",
+                "Completion time": "2026-09-10 10:05",
+                "Name": "Account name",
+                "Last modified time": "2026-09-10 10:06",
+                "email2": "typed-address@example.org",
+            }
+        )
+        submissions = pd.DataFrame([submission])
         researchers = pd.DataFrame(
             [
                 researcher("Daily", "daily@example.org", "English", daily_max=1, promotor_max=0),
@@ -477,12 +491,57 @@ class GroupedAllocationTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             final = pd.read_excel(root / "output" / "final_assignments.xlsx")
+            shareable = pd.read_excel(
+                root / "output" / "final_assignments_shareable.xlsx"
+            ).set_index("email")
             report = json.loads(
                 (root / "output" / "run_report.json").read_text(encoding="utf-8")
             )
             self.assertEqual(final.iloc[0]["assigned_topic_id"], "A")
+            self.assertEqual(set(final["thesis_type"]), {"dual"})
+            self.assertEqual(
+                set(final["thesis_allocation_status"]), {"new topic"}
+            )
+            excluded = {
+                "thesis_group_id",
+                "carry_over_review_status",
+                "daily_supervisor_review_status",
+                "thesis_promotor_review_status",
+                "daily_supervisor_review_reason",
+                "thesis_promotor_review_reason",
+                "carry_over_review_reason",
+                "ID",
+                "Start time",
+                "Completion time",
+                "Email",
+                "Name",
+                "Last modified time",
+                "email2",
+                "dual_thesis_confirmation",
+                "carry_over_thesis_description",
+                "submission_type",
+                "allocation_path",
+                "group_size",
+                "submitted_daily_supervisor_email",
+                "submitted_thesis_promotor_email",
+                "resolved_daily_supervisor_email",
+                "daily_supervisor_email_resolution",
+                "daily_supervisor_email_match_score",
+                "resolved_thesis_promotor_email",
+                "thesis_promotor_email_resolution",
+                "thesis_promotor_email_match_score",
+            }
+            self.assertTrue(excluded.isdisjoint(final.columns))
+            self.assertEqual(
+                shareable.at["primary@example.org", "dual_thesis_with"],
+                "Partner Student",
+            )
+            self.assertEqual(
+                shareable.at["partner@example.org", "dual_thesis_with"],
+                "Primary Student",
+            )
             self.assertEqual(report["input_format"], "branching_student_preferences")
-            self.assertEqual(report["assigned_students"], 1)
+            self.assertEqual(report["assigned_students"], 2)
             self.assertEqual(report["assigned_theses"], 1)
 
 
