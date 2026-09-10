@@ -204,15 +204,17 @@ def _resolve_carry_over_emails(
             if resolution is None:
                 suggestions = ", ".join(candidate[0] for candidate in candidates)
                 suffix = (
-                    f" Closest candidate(s): {suggestions}."
+                    f" Closest email spellings for manual review: {suggestions}."
                     if suggestions
-                    else " The researchers file contains no candidate emails."
+                    else " The researchers file contains no email spellings to review."
                 )
                 reason = (
                     f"Submitted {label.replace('_', ' ')} email "
                     f"'{clean_text(submitted)}' could not be matched confidently in "
                     "researchers.xlsx. The researcher may have left or the address may "
-                    f"be incorrect.{suffix} A replacement was assigned where feasible."
+                    f"be incorrect.{suffix} Replacement selected based on best semantic "
+                    "fit by the allocation model, subject to eligibility, language, "
+                    "capacity, and distinct-role constraints."
                 )
                 review_status = (
                     f"{MANUAL_REVIEW_NEEDED} - UNKNOWN {ROLE_REVIEW_LABELS[label]}"
