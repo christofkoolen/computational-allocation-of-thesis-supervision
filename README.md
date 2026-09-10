@@ -111,7 +111,7 @@ Common fields:
 | Column | Purpose |
 | --- | --- |
 | `full_name` | Primary student's name |
-| `email2` | Primary student's unique email; used instead of any automatically recorded account-email column |
+| `Email` | Primary student's unique email |
 | `student_number` | Primary student's number |
 | `thesis_type` | Individual or dual thesis |
 | `thesis_allocation_status` | Ranked, self-proposed, or carry-over route |
@@ -172,11 +172,11 @@ they remain eligible, language-compatible, and within maximum capacity.
 Supervisor emails are matched exactly after capitalization and surrounding-space
 normalization. A one-character typo is corrected automatically only when one
 researcher is a uniquely strong match. If an address has no confident match,
-the run continues and assigns a replacement where feasible. The administrative
-output marks the affected role as `MANUAL REVIEW NEEDED - UNKNOWN DAILY
+the run continues and assigns a replacement where feasible. The group-level
+audit marks the affected role as `MANUAL REVIEW NEEDED - UNKNOWN DAILY
 SUPERVISOR` or `MANUAL REVIEW NEEDED - UNKNOWN THESIS PROMOTOR`. The submitted
-values, closest candidates, replacement, and resolution details remain in the
-outputs.
+values, closest candidates, replacement, and resolution details remain in
+`thesis_group_assignments.xlsx`.
 
 See [student preference input](docs/STUDENT_PREFERENCES.md) for the complete
 column contract.
@@ -206,9 +206,9 @@ A dual pair is one thesis allocation unit. It consumes:
 - one promotor slot.
 
 Both students receive the same topic, language, daily supervisor, and promotor.
-They appear as separate rows in `final_assignments.xlsx` with the same
-`thesis_group_id`. Capacity reporting uses the group-level result, so the pair is
-counted once.
+They appear as separate rows in the student-level outputs. The
+`dual_thesis_with` field names the other student on each row. Capacity reporting
+uses the group-level result, so the pair is counted once.
 
 ## Output files
 
@@ -219,8 +219,8 @@ A complete run produces:
 | `researchers_enriched.xlsx` | Validated and optionally enriched researcher data |
 | `topic_assignments.xlsx` | One row per thesis group with topic allocation details |
 | `thesis_group_assignments.xlsx` | Complete group-level topic and supervision audit |
-| `final_assignments.xlsx` | Complete student-level results |
-| `final_assignments_shareable.xlsx` | Reduced student-facing assignment fields |
+| `final_assignments.xlsx` | Concise operational student-level results |
+| `final_assignments_shareable.xlsx` | Student-facing assignment fields, including the other member of a dual thesis |
 | `supervisor_summary.xlsx` | Workload, minimum, and maximum overview |
 | `run_report.json` | Counts, warnings, and output paths |
 

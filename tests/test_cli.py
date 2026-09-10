@@ -195,6 +195,7 @@ class CliTests(unittest.TestCase):
                 [
                     "full_name",
                     "email",
+                    "dual_thesis_with",
                     "assigned_topic",
                     "assigned_language",
                     "daily_supervisor",

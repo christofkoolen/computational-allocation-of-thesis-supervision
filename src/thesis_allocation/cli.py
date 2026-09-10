@@ -33,6 +33,7 @@ from thesis_allocation.topics import allocate_topics
 SHAREABLE_ASSIGNMENT_COLUMNS = (
     "full_name",
     "email",
+    "dual_thesis_with",
     "assigned_topic",
     "assigned_language",
     "daily_supervisor",
@@ -40,6 +41,61 @@ SHAREABLE_ASSIGNMENT_COLUMNS = (
     "promotor",
     "promotor_email",
 )
+
+FINAL_ASSIGNMENT_EXCLUDED_COLUMNS = (
+    "thesis_group_id",
+    "carry_over_review_status",
+    "daily_supervisor_review_status",
+    "thesis_promotor_review_status",
+    "daily_supervisor_review_reason",
+    "thesis_promotor_review_reason",
+    "carry_over_review_reason",
+    "ID",
+    "Start time",
+    "Completion time",
+    "Email",
+    "Name",
+    "Last modified time",
+    "email2",
+    "dual_thesis_confirmation",
+    "carry_over_thesis_description",
+    "submission_type",
+    "allocation_path",
+    "group_size",
+    "submitted_daily_supervisor_email",
+    "submitted_thesis_promotor_email",
+    "resolved_daily_supervisor_email",
+    "daily_supervisor_email_resolution",
+    "daily_supervisor_email_match_score",
+    "resolved_thesis_promotor_email",
+    "thesis_promotor_email_resolution",
+    "thesis_promotor_email_match_score",
+)
+
+FINAL_ASSIGNMENT_LEADING_COLUMNS = (
+    "full_name",
+    "email",
+    "student_number",
+    "thesis_type",
+    "thesis_allocation_status",
+    "dual_thesis_with",
+)
+
+
+def prepare_final_assignments(frame):
+    """Return the concise, operational assignment output."""
+
+    result = frame.drop(
+        columns=list(FINAL_ASSIGNMENT_EXCLUDED_COLUMNS),
+        errors="ignore",
+    ).copy()
+    if "dual_thesis_with" not in result.columns:
+        result["dual_thesis_with"] = ""
+    ordered = [column for column in FINAL_ASSIGNMENT_LEADING_COLUMNS if column in result]
+    return result.loc[
+        :,
+        [*ordered, *[column for column in result if column not in ordered]],
+    ]
 
 
 def _add_backend_arguments(parser: argparse.ArgumentParser) -> None:
@@ -272,12 +328,13 @@ def _command_run(args: argparse.Namespace) -> None:
             grouped.group_assignments,
             output_directory / "thesis_group_assignments.xlsx",
         )
+        final_assignments = prepare_final_assignments(grouped.assignments)
         final_path = write_table(
-            grouped.assignments,
+            final_assignments,
             output_directory / "final_assignments.xlsx",
         )
         shareable_path = write_table(
-            grouped.assignments.loc[:, list(SHAREABLE_ASSIGNMENT_COLUMNS)].copy(),
+            final_assignments.loc[:, list(SHAREABLE_ASSIGNMENT_COLUMNS)].copy(),
             output_directory / "final_assignments_shareable.xlsx",
         )
         summary_path = write_table(
@@ -370,12 +427,13 @@ def _command_run(args: argparse.Namespace) -> None:
         allocation.assignments,
     )
     restored_assignments = finalize_manual_review_assignments(restored_assignments)
+    final_assignments = prepare_final_assignments(restored_assignments)
     final_path = write_table(
-        restored_assignments,
+        final_assignments,
         output_directory / "final_assignments.xlsx",
     )
     shareable_path = write_table(
-        restored_assignments.loc[:, list(SHAREABLE_ASSIGNMENT_COLUMNS)].copy(),
+        final_assignments.loc[:, list(SHAREABLE_ASSIGNMENT_COLUMNS)].copy(),
         output_directory / "final_assignments_shareable.xlsx",
     )
     summary_path = write_table(
