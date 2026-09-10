@@ -61,7 +61,8 @@ The ZIP contains:
 
 `thesis_group_assignments.xlsx` contains one row per thesis and is the correct
 file for reviewing capacity use. `final_assignments.xlsx` contains one row per
-student, so each dual thesis appears twice with the same `thesis_group_id`.
+student. Each dual thesis appears twice, and `dual_thesis_with` names the other
+student on both rows.
 
 ## Reassign supervision
 
