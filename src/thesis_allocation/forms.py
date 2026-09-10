@@ -84,15 +84,15 @@ def normalize_forms_submissions(
             "student_preferences is missing required column(s): "
             + ", ".join(missing)
         )
-    if "email2" in result.columns:
-        student_email_column = "email2"
+    if "Email" in result.columns:
+        student_email_column = "Email"
     elif "email" in result.columns:
         # Backwards compatibility for templates and submissions created before
-        # the dedicated student-email field was named ``email2``.
+        # the source export's ``Email`` field became authoritative.
         student_email_column = "email"
     else:
         raise InputValidationError(
-            "student_preferences is missing required column: email2"
+            "student_preferences is missing required column: Email"
         )
 
     for column in (
@@ -178,6 +178,12 @@ def normalize_forms_submissions(
                 "partner_full_name": partner_name,
                 "partner_email": partner_email,
                 "partner_student_number": partner_number,
+                "thesis_type": submission_type,
+                "thesis_allocation_status": {
+                    "ranked": "new topic",
+                    "self_proposed": "self-proposed topic",
+                    "carry_over": "carry-over topic",
+                }[allocation_path],
                 "submission_type": submission_type,
                 "allocation_path": allocation_path,
                 "group_size": 2 if submission_type == "dual" else 1,
@@ -290,14 +296,19 @@ def expand_group_assignments(assignments: pd.DataFrame) -> pd.DataFrame:
 
     rows: list[dict[str, object]] = []
     for _, group in assignments.iterrows():
+        primary_name = clean_text(group.get("full_name"))
+        partner_name = clean_text(group.get("partner_full_name"))
+        partner_email = normalize_email(group.get("partner_email"))
         primary = group.to_dict()
         primary["group_member_role"] = "primary"
+        primary["dual_thesis_with"] = partner_name if partner_email else ""
         rows.append(primary)
-        if clean_text(group.get("partner_email")):
+        if partner_email:
             partner = group.to_dict()
-            partner["full_name"] = clean_text(group.get("partner_full_name"))
-            partner["email"] = normalize_email(group.get("partner_email"))
+            partner["full_name"] = partner_name
+            partner["email"] = partner_email
             partner["student_number"] = clean_text(group.get("partner_student_number"))
             partner["group_member_role"] = "partner"
+            partner["dual_thesis_with"] = primary_name
             rows.append(partner)
     return pd.DataFrame(rows).drop(columns=["_form_order"], errors="ignore")
