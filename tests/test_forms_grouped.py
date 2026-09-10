@@ -383,6 +383,14 @@ class GroupedAllocationTests(unittest.TestCase):
             "Automatically assigned daily supervisor replacement",
             assignment["daily_supervisor_review_reason"],
         )
+        self.assertIn(
+            "Closest email spellings for manual review",
+            assignment["daily_supervisor_review_reason"],
+        )
+        self.assertIn(
+            "Replacement selected based on best semantic fit by the allocation model",
+            assignment["daily_supervisor_review_reason"],
+        )
         self.assertEqual(result.manual_review_theses, 1)
         self.assertTrue(
             any(
