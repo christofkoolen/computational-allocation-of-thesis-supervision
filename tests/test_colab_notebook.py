@@ -115,6 +115,16 @@ class ColabNotebookTests(unittest.TestCase):
         self.assertIn("files.download(", code)
         self.assertNotIn("drive.mount", code)
 
+    def test_notebook_prints_each_cli_warning_once(self) -> None:
+        run_cell = next(
+            cell
+            for cell in self.notebook["cells"]
+            if cell.get("metadata", {}).get("id") == "run"
+        )
+        source = "".join(run_cell["source"])
+        self.assertIn("redirect_stderr(command_messages)", source)
+        self.assertNotIn('for warning in report["warnings"]', source)
+
     def test_notebook_requests_gpu_and_reports_the_assigned_device(self) -> None:
         self.assertEqual(self.notebook["metadata"]["accelerator"], "GPU")
         setup_cell = next(

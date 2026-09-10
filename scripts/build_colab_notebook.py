@@ -209,10 +209,12 @@ def build_notebook() -> dict[str, object]:
         ''', cell_id='setup', form=True),
         _code('''
         # @title 3.b Run selected workflow
+        import io
         import json
         import os
         import shutil
         import zipfile
+        from contextlib import redirect_stderr
         from pathlib import Path
 
         import pandas as pd
@@ -365,9 +367,12 @@ def build_notebook() -> dict[str, object]:
             ]
             result_filename = "thesis_reassignment_results.zip"
 
+        command_messages = io.StringIO()
         try:
-            exit_code = run_command(arguments)
+            with redirect_stderr(command_messages):
+                exit_code = run_command(arguments)
             if exit_code != 0:
+                print(command_messages.getvalue(), end="")
                 raise RuntimeError("The run stopped because an input or constraint was invalid. Read the message immediately above for the exact reason.")
         finally:
             shutil.rmtree(input_directory, ignore_errors=True)
@@ -385,13 +390,13 @@ def build_notebook() -> dict[str, object]:
                 f"and {report.get('manual_review_theses', report.get('manual_review_students', 0))} manual-review group(s); "
                 f"total preference cost {report['preference_cost']}."
             )
-            for warning in report["warnings"]:
-                print(f"Warning: {warning}")
         else:
             log = pd.read_csv(output_directory / "reassignment_log.csv")
             completed = log["new_supervisor_email"].fillna("").astype(str).str.strip().ne("")
             print(f"Completed: {int(completed.sum())} reassignment(s).")
 
+        if command_messages.getvalue():
+            print(command_messages.getvalue(), end="")
         print(f"Downloading {result_filename}...")
         files.download(str(result_path))
         ''', cell_id='run', form=True),
