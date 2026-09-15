@@ -152,8 +152,8 @@ The allocation workflow uses lexicographic priorities:
 2. retain feasible named carry-over supervisors;
 3. minimize student-weighted topic rank cost;
 4. minimize student-weighted language rank;
-5. maximize assignments to eligible topic submitters;
-6. meet researcher minimum workload targets where feasible;
+5. meet researcher minimum workload targets where feasible;
+6. maximize assignments to eligible topic submitters;
 7. maximize semantic fit with mild load balancing and deterministic tie-breaking.
 
 All topic capacities, maximum researcher capacities, language compatibility,

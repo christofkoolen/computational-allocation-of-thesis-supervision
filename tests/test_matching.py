@@ -293,7 +293,7 @@ class SupervisorMatchingTests(unittest.TestCase):
         self.assertEqual(counts["bob@example.org"], 1)
         self.assertEqual(counts["alice@example.org"], 1)
 
-    def test_topic_submitter_has_priority_over_similarity_and_minimums(self) -> None:
+    def test_minimum_has_priority_over_topic_submitter_and_similarity(self) -> None:
         researchers = pd.DataFrame(
             [
                 researcher(
@@ -341,14 +341,62 @@ class SupervisorMatchingTests(unittest.TestCase):
         output = result.assignments.iloc[0]
         self.assertEqual(
             output["daily_supervisor_email"],
-            "alice@example.org",
+            "bob@example.org",
         )
         self.assertEqual(
             output["daily_supervisor_assignment_source"],
-            "topic_submitter",
+            "semantic",
         )
-        self.assertTrue(
-            any("Bob Semantic Match (0/1)" in warning for warning in result.warnings)
+        self.assertFalse(result.warnings)
+
+    def test_topic_submitter_precedes_semantic_fit_after_minimums(self) -> None:
+        researchers = pd.DataFrame(
+            [
+                researcher(
+                    "Alice Submitter",
+                    "alice@example.org",
+                    "medieval history",
+                    daily_max=1,
+                    promotor_max=0,
+                ),
+                researcher(
+                    "Bob Semantic Match",
+                    "bob@example.org",
+                    "privacy law rights safeguards",
+                    daily_max=1,
+                    promotor_max=0,
+                ),
+            ]
+        )
+        topics = self.topics.copy()
+        topics.loc[
+            topics["topic_id"] == "privacy",
+            "submitter_email",
+        ] = "alice@example.org"
+        assignments = pd.DataFrame(
+            [
+                {
+                    "full_name": "Student Privacy",
+                    "email": "privacy.student@example.org",
+                    "assigned_topic_id": "privacy",
+                    "assigned_topic": "Privacy law",
+                }
+            ]
+        )
+
+        result = match_supervisors(
+            assignments,
+            researchers,
+            topics,
+            self.backend,
+            roles=("daily_supervisor",),
+        )
+
+        output = result.assignments.iloc[0]
+        self.assertEqual(output["daily_supervisor_email"], "alice@example.org")
+        self.assertEqual(
+            output["daily_supervisor_assignment_source"],
+            "topic_submitter",
         )
 
     def test_topic_submitter_priority_stops_at_maximum_capacity(self) -> None:
