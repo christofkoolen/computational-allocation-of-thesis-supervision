@@ -20,15 +20,17 @@ def researcher(
     *,
     daily_max: int,
     promotor_max: int,
+    daily_min: int = 0,
+    promotor_min: int = 0,
 ) -> dict[str, object]:
     return {
         "full_name": name,
         "email": email,
         "supervision_languages": languages,
         "profile_description": "law technology privacy",
-        "daily_supervisor_minimum_theses": 0,
+        "daily_supervisor_minimum_theses": daily_min,
         "daily_supervisor_maximum_theses": daily_max,
-        "promotor_minimum_theses": 0,
+        "promotor_minimum_theses": promotor_min,
         "promotor_maximum_theses": promotor_max,
     }
 
@@ -251,7 +253,7 @@ class GroupedAllocationTests(unittest.TestCase):
         self.assertEqual(groups.at["new@example.org", "assigned_language"], "English")
         self.assertEqual(groups.at["new@example.org", "assigned_language_rank"], 2)
 
-    def test_topic_submitter_keeps_absolute_role_priority(self) -> None:
+    def test_topic_submitter_precedes_semantic_fit_after_minimums(self) -> None:
         submissions = pd.DataFrame(
             [
                 ranked_submission(
@@ -288,6 +290,242 @@ class GroupedAllocationTests(unittest.TestCase):
         )
         self.assertEqual(
             assignment["daily_supervisor_assignment_source"], "topic_submitter"
+        )
+
+    def test_feasible_minimum_precedes_topic_submitter_priority(self) -> None:
+        submissions = pd.DataFrame(
+            [
+                ranked_submission(
+                    "Student",
+                    "student@example.org",
+                    ("A", "B", "C"),
+                    ("English", "English", "English"),
+                )
+            ]
+        )
+        topics = self.topics.copy()
+        topics.loc[topics["topic_id"].eq("A"), "submitter_email"] = (
+            "submitter@example.org"
+        )
+        researchers = pd.DataFrame(
+            [
+                researcher(
+                    "Submitter",
+                    "submitter@example.org",
+                    "English",
+                    daily_max=1,
+                    promotor_max=0,
+                ),
+                researcher(
+                    "Below minimum",
+                    "minimum@example.org",
+                    "English",
+                    daily_min=1,
+                    daily_max=1,
+                    promotor_max=0,
+                ),
+                researcher(
+                    "Promotor",
+                    "promotor@example.org",
+                    "English",
+                    daily_max=0,
+                    promotor_max=1,
+                ),
+            ]
+        )
+
+        result = allocate_forms_submissions(
+            submissions, topics, researchers, self.backend
+        )
+        assignment = result.group_assignments.iloc[0]
+
+        self.assertEqual(
+            assignment["daily_supervisor_email"], "minimum@example.org"
+        )
+        self.assertEqual(
+            assignment["daily_supervisor_assignment_source"], "semantic"
+        )
+
+    def test_submitter_priority_applies_to_promotor_role(self) -> None:
+        submissions = pd.DataFrame(
+            [
+                ranked_submission(
+                    "Student",
+                    "student@example.org",
+                    ("A", "B", "C"),
+                    ("English", "English", "English"),
+                )
+            ]
+        )
+        topics = self.topics.copy()
+        topics.loc[topics["topic_id"].eq("A"), "submitter_email"] = (
+            "professor@example.org"
+        )
+        researchers = pd.DataFrame(
+            [
+                researcher(
+                    "Daily supervisor",
+                    "daily@example.org",
+                    "English",
+                    daily_max=1,
+                    promotor_max=0,
+                ),
+                researcher(
+                    "Professor submitter",
+                    "professor@example.org",
+                    "English",
+                    daily_max=0,
+                    promotor_max=1,
+                ),
+                researcher(
+                    "Better semantic promotor",
+                    "better@example.org",
+                    "English",
+                    daily_max=0,
+                    promotor_max=1,
+                ),
+            ]
+        )
+        researchers.loc[
+            researchers["email"].eq("professor@example.org"),
+            "profile_description",
+        ] = "medieval history"
+
+        result = allocate_forms_submissions(
+            submissions, topics, researchers, self.backend
+        )
+        assignment = result.group_assignments.iloc[0]
+
+        self.assertEqual(assignment["promotor_email"], "professor@example.org")
+        self.assertEqual(
+            assignment["promotor_assignment_source"], "topic_submitter"
+        )
+
+    def test_worked_example_meets_minimums_then_preserves_ownership(
+        self,
+    ) -> None:
+        topic_rows = []
+        for topic_id in ("A1", "A2", "A3", "A4"):
+            topic_rows.append(
+                {
+                    "topic_id": topic_id,
+                    "topic_title": f"Copyright {topic_id}",
+                    "topic_description": "copyright law",
+                    "submitter_email": "anne@example.org",
+                    "capacity": 1,
+                }
+            )
+        topic_rows.extend(
+            [
+                {
+                    "topic_id": "L1",
+                    "topic_title": "Cybersecurity",
+                    "topic_description": "cybersecurity",
+                    "submitter_email": "lars@example.org",
+                    "capacity": 1,
+                },
+                {
+                    "topic_id": "P1",
+                    "topic_title": "Professor cybersecurity",
+                    "topic_description": "cybersecurity",
+                    "submitter_email": "professor@example.org",
+                    "capacity": 1,
+                },
+                {
+                    "topic_id": "P2",
+                    "topic_title": "Professor AI",
+                    "topic_description": "artificial intelligence",
+                    "submitter_email": "professor@example.org",
+                    "capacity": 1,
+                },
+            ]
+        )
+        topics = pd.DataFrame(topic_rows)
+        topic_ids = [row["topic_id"] for row in topic_rows]
+        submissions = pd.DataFrame(
+            [
+                ranked_submission(
+                    f"Student {index + 1}",
+                    f"student{index + 1}@example.org",
+                    (
+                        topic_id,
+                        topic_ids[(index + 1) % len(topic_ids)],
+                        topic_ids[(index + 2) % len(topic_ids)],
+                    ),
+                    ("English", "English", "English"),
+                )
+                for index, topic_id in enumerate(topic_ids)
+            ]
+        )
+        researchers = pd.DataFrame(
+            [
+                researcher(
+                    "Anne",
+                    "anne@example.org",
+                    "English",
+                    daily_min=2,
+                    daily_max=4,
+                    promotor_max=0,
+                ),
+                researcher(
+                    "Lars",
+                    "lars@example.org",
+                    "English",
+                    daily_min=2,
+                    daily_max=4,
+                    promotor_max=0,
+                ),
+                researcher(
+                    "Jolien",
+                    "jolien@example.org",
+                    "English",
+                    daily_min=2,
+                    daily_max=4,
+                    promotor_max=0,
+                ),
+                researcher(
+                    "Professor",
+                    "professor@example.org",
+                    "English",
+                    daily_max=0,
+                    promotor_max=7,
+                ),
+            ]
+        )
+        profiles = {
+            "anne@example.org": "copyright law",
+            "lars@example.org": "cybersecurity",
+            "jolien@example.org": "artificial intelligence",
+            "professor@example.org": "law technology",
+        }
+        researchers["profile_description"] = researchers["email"].map(profiles)
+
+        result = allocate_forms_submissions(
+            submissions, topics, researchers, self.backend
+        )
+        assignments = result.group_assignments
+        counts = assignments["daily_supervisor_email"].value_counts()
+        anne_assignments = assignments.loc[
+            assignments["daily_supervisor_email"].eq("anne@example.org")
+        ]
+
+        self.assertEqual(
+            counts.to_dict(),
+            {
+                "anne@example.org": 3,
+                "jolien@example.org": 2,
+                "lars@example.org": 2,
+            },
+        )
+        self.assertTrue(
+            anne_assignments["assigned_topic_id"]
+            .isin({"A1", "A2", "A3", "A4"})
+            .all()
+        )
+        self.assertTrue(
+            anne_assignments["daily_supervisor_assignment_source"]
+            .eq("topic_submitter")
+            .all()
         )
 
     def test_unique_carry_over_email_typo_is_corrected_and_audited(self) -> None:

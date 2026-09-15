@@ -28,7 +28,6 @@ from thesis_allocation.topics import TopicResolver
 
 
 SIMILARITY_COST_SCALE = 1_000
-MINIMUM_PRIORITY_PENALTY = 1_000_000
 
 
 @dataclass(frozen=True)
@@ -302,7 +301,8 @@ def _assign_role(
     if candidates["_profile_text"].eq("").all():
         warnings.append(
             f"All eligible {spec.label.casefold()} profiles are blank; "
-            "assignments will be driven by capacity and submitter priority"
+            "assignments will be driven by capacity, workload minimums, "
+            "and submitter priority"
         )
 
     load_rows = result
@@ -344,13 +344,16 @@ def _assign_role(
         max(0, int(candidate[spec.maximum_column]) - 1)
         for _, candidate in candidates.iterrows()
     )
-    maximum_secondary_path_cost = (
-        MINIMUM_PRIORITY_PENALTY
-        + (2 * SIMILARITY_COST_SCALE)
+    maximum_semantic_balance_cost = (
+        (2 * SIMILARITY_COST_SCALE)
         + (load_balance_cost * maximum_slot_index)
     )
     non_submitter_penalty = (
-        len(target_indices) * maximum_secondary_path_cost
+        len(target_indices) * maximum_semantic_balance_cost
+    ) + 1
+    above_minimum_penalty = (
+        len(target_indices)
+        * (non_submitter_penalty + maximum_semantic_balance_cost)
     ) + 1
 
     source = 0
@@ -371,7 +374,7 @@ def _assign_role(
         remaining_minimum = max(0, minimum - current)
         for slot in range(remaining):
             minimum_penalty = (
-                0 if slot < remaining_minimum else MINIMUM_PRIORITY_PENALTY
+                0 if slot < remaining_minimum else above_minimum_penalty
             )
             balancing_penalty = load_balance_cost * (current + slot)
             network.add_edge(

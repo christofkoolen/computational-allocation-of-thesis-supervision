@@ -28,8 +28,8 @@ The objective is lexicographic:
 1. retain feasible named carry-over roles;
 2. minimize topic rank multiplied by group size;
 3. minimize language rank multiplied by group size;
-4. maximize eligible topic-submitter assignments;
-5. minimize unmet researcher workload targets;
+4. minimize unmet researcher workload targets;
+5. maximize eligible topic-submitter assignments;
 6. minimize semantic mismatch with a mild incremental load-balancing cost.
 
 The optimizer fixes the optimum after each stage before solving the next stage.
@@ -98,27 +98,28 @@ semantic score. If a student has `assigned_language = French`, an English-only
 researcher receives no edge for that student even if that researcher is the
 strongest semantic match. A researcher who supports French remains eligible.
 Only among language-compatible candidates does the optimization consider
-submitter priority, capacity, minimum workload targets, semantic similarity, and
+capacity, minimum workload targets, submitter priority, semantic similarity, and
 load balancing.
 
 The flow network then accounts for:
 
 - researcher-level supervision-language compatibility as a hard candidate filter;
 - hard maximum capacities;
-- absolute priority for an eligible offered-topic submitter;
 - prioritized minimum workload slots;
+- priority for an eligible offered-topic submitter after minimum coverage;
 - semantic similarity cost;
 - a mild incremental load-balancing cost;
 - exclusion of the other role when distinct roles are required.
 
-The objective is lexicographic. It first maximizes the number of assignments
-given to their topic submitter among language-compatible and otherwise eligible
-researchers. Minimum workload slots, semantic similarity, and load balancing are
-considered only among solutions with that maximum. Submitter priority remains
-subject to language compatibility, role eligibility, exclusions, the
+The objective is lexicographic. It first minimizes the total shortfall below
+researcher workload minimums. Among solutions with the same best minimum
+coverage, it maximizes assignments given to their topic submitter. Semantic
+similarity and load balancing are considered only after both priorities are
+fixed. Submitter priority applies to daily-supervisor and promotor roles according
+to eligibility, and remains subject to language compatibility, exclusions, the
 distinct-role rule, and the researcher's maximum capacity. If one researcher
-submitted more assigned topics than their available capacity, the secondary
-costs determine which of those topics they supervise.
+submitted more assigned topics than their available capacity, the later costs
+determine which of those topics they supervise.
 
 The topic-allocation stage is not rerun when the supervision stage encounters a
 language bottleneck. If a student has an assigned language but no eligible

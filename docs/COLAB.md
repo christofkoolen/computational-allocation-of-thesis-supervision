@@ -91,7 +91,8 @@ assignments, workload summary, and reassignment log.
 - Student language order is considered after topic rank.
 - Daily supervisors and promotors must be different unless the corresponding
   option is enabled.
-- Eligible topic submitters receive supervision priority up to capacity.
+- After feasible workload minimums have been covered, eligible topic submitters
+  receive supervision priority up to capacity for either role.
 - Carry-over supervisor emails are recovered from a small typo only when one
   researcher is a uniquely strong match. Unknown or ambiguous addresses are
   reassigned where feasible and marked for role-specific manual review in the

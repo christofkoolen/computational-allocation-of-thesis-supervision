@@ -98,9 +98,11 @@ Students select topics using exact `topic_id` values. Titles are display text an
 are not used as identifiers. Topic capacity is a hard constraint. A missing
 `capacity` column or an individual blank capacity cell defaults to 1.
 
-An eligible topic submitter has absolute supervision priority for that topic up
-to the researcher's role capacity. Language compatibility, role eligibility,
-maximum capacity, and the distinct-role requirement remain mandatory.
+After feasible workload minimums have been covered, an eligible topic submitter
+has priority for that topic up to the researcher's role capacity. The preference
+applies to daily-supervisor and promotor roles according to eligibility. Language
+compatibility, maximum capacity, and the distinct-role requirement remain
+mandatory.
 
 ### 3. `student_preferences.xlsx`
 
@@ -189,13 +191,16 @@ The current workflow applies these priorities in order:
 2. retain feasible named carry-over supervisors;
 3. minimize student-weighted topic rank cost;
 4. minimize student-weighted language rank;
-5. maximize assignments to eligible topic submitters;
-6. meet researcher minimum workload targets where feasible;
+5. meet researcher minimum workload targets where feasible;
+6. maximize assignments to eligible topic submitters;
 7. maximize semantic fit with mild load balancing.
 
 After each stage, its optimum is fixed before the next stage is solved. Topic
 capacity, researcher maximum capacity, role eligibility, language compatibility,
 and distinct supervision roles remain hard constraints.
+
+See [researcher-facing guidance](docs/RESEARCHER_GUIDE.md) for a worked example
+of how workload minimums, topic ownership, and semantic fit interact.
 
 ## Dual-thesis capacity
 

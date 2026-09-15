@@ -358,8 +358,8 @@ def allocate_forms_submissions(
 
     Objective stages are lexicographic. They preserve valid carry-over role
     assignments first, then minimize student-weighted topic rank, minimize
-    student-weighted language rank, maximize topic-submitter assignments,
-    satisfy workload minimums where feasible, and finally optimize semantic fit.
+    student-weighted language rank, satisfy workload minimums where feasible,
+    maximize topic-submitter assignments, and finally optimize semantic fit.
     """
 
     groups = normalize_forms_submissions(
@@ -571,6 +571,11 @@ def allocate_forms_submissions(
         language_cost[x[option_index]] = (option.language_rank - 1) * group_size
     stages.extend((topic_cost, language_cost))
 
+    minimum_cost = objective()
+    for variable_index in deficits.values():
+        minimum_cost[variable_index] = 1
+    stages.append(minimum_cost)
+
     submitter_cost = objective()
     for role in ROLE_SPECS:
         for (option_index, researcher_index), variable_index in role_edges[role].items():
@@ -578,11 +583,6 @@ def allocate_forms_submissions(
             if submitter and researcher_table.at[researcher_index, "email"] == submitter:
                 submitter_cost[variable_index] = -1
     stages.append(submitter_cost)
-
-    minimum_cost = objective()
-    for variable_index in deficits.values():
-        minimum_cost[variable_index] = 1
-    stages.append(minimum_cost)
 
     semantic_cost = objective()
     for role in ROLE_SPECS:

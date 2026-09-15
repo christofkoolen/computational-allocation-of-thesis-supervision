@@ -51,7 +51,7 @@ language field because language eligibility belongs to researchers.
 | `topic_id` | Yes | Stable unique ID used by students when submitting preferences |
 | `topic_title` | Yes | Unique official topic title |
 | `topic_description` | No | Text included in semantic matching and copied into `assigned_topic_description` when allocated |
-| `submitter_email` | No | Researcher who proposed the topic; receives absolute supervision priority when eligible and within maximum capacity |
+| `submitter_email` | No | Researcher who proposed the topic; receives priority for an eligible supervision role after feasible workload minimums have been covered |
 | `capacity` | No | Number of theses that may receive the topic; defaults to 1 when the column or an individual cell is blank |
 
 Topic IDs `9998` and `9999` are reserved and must not appear in the topics file.
@@ -173,12 +173,13 @@ For example:
 
 The English-only researcher receives no assignment edge for Student A, even if
 their semantic match to the topic is excellent. Among the remaining
-French-compatible candidates, the optimizer then considers topic-submitter
-priority, hard maximum capacities, minimum workload targets, semantic fit, and
-load balancing. Topic allocation does not go back and choose another topic when
-the subsequent supervision stage has too little language-compatible capacity. A
-complete run therefore becomes infeasible if no compatible supervision assignment
-can be made, unless partial results are explicitly allowed.
+French-compatible candidates, the optimizer then considers hard maximum
+capacities, minimum workload targets, topic-submitter priority, semantic fit,
+and load balancing. Topic allocation does not go back and choose another topic
+when the subsequent supervision stage has too little language-compatible
+capacity. A complete run therefore becomes infeasible if no compatible
+supervision assignment can be made, unless partial results are explicitly
+allowed.
 
 When a student chooses `9999` on a row without `9998`, that choice is treated as
 that student's own, unique thesis topic. It is not constrained by an offered-
